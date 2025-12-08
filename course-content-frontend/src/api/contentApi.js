@@ -1,0 +1,31 @@
+import axios from "axios";
+
+const api = axios.create({
+  baseURL: "http://localhost:8080/api",
+});
+
+export const fetchContents = () => api.get("/content");
+
+export const uploadFile = (file, onUploadProgress) => {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  return api.post("/content", formData, {
+    headers: { "Content-Type": "multipart/form-data" },
+    onUploadProgress,
+  });
+};
+
+export const downloadFile = (id) =>
+  api.get(`/content/${id}/download`, {
+    responseType: "blob",
+  });
+
+export const deleteContent = (id) =>
+api.delete(`/content/${id}`);
+
+export const generateSummary = (id) =>
+  api.post(`/content/${id}/summary`);
+
+export const getSummary = (id) =>
+  api.get(`/content/${id}/summary`);

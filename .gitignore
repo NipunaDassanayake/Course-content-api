@@ -1,0 +1,28 @@
+# Node / React
+course-content-frontend/node_modules/
+course-content-frontend/dist/
+course-content-frontend/.env
+course-content-frontend/.env.local
+
+# Java / Maven
+coursecontent/target/
+coursecontent/.mvn/
+*.log
+
+# IntelliJ / VS Code
+.idea/
+.vscode/
+
+# Uploaded files
+uploads/
+coursecontent/uploads/
+
+# OS junk
+.DS_Store
+Thumbs.db
+
+
+# === Backend (Spring Boot / Maven) ===
+**/application.properties
+**/application-*.yml
+**/application-*.yaml

@@ -1,0 +1,11 @@
+@import "tailwindcss";
+
+/* Minimal globals – let Tailwind classes control layout & colors */
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
