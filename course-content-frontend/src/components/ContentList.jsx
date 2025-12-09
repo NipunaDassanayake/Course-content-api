@@ -77,7 +77,7 @@ function ContentList({ contents, onDownload, onView, onDelete, onShowSummary }) 
               {/* Download */}
               <td className="px-3 py-2 text-center">
                 <button
-                  onClick={() => onDownload(item.id, item.fileName)}
+                  onClick={() => onDownload(item)}
                   className="inline-flex items-center px-3 py-1.5 rounded-md
                              bg-emerald-600 text-white text-xs font-medium
                              hover:bg-emerald-700 focus:outline-none

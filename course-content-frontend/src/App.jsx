@@ -6,7 +6,6 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   fetchContents,
   uploadFile,
-  downloadFile,
   deleteContent,
   generateSummary,
   getSummary,
@@ -44,26 +43,19 @@ function App() {
     }
   };
 
-  const handleDownload = async (id, originalName) => {
-    try {
-      const response = await downloadFile(id);
-      const contentType =
-        response.headers["content-type"] || "application/octet-stream";
-      const blob = new Blob([response.data], { type: contentType });
-      const fileName = originalName || "download";
-
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.setAttribute("download", fileName);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(url);
-    } catch (err) {
-      console.error(err);
-      alert("Download failed");
+  // ✅ Download directly from S3 public URL
+  const handleDownload = (item) => {
+    if (!item.fileUrl) {
+      alert("No download URL available");
+      return;
     }
+
+    const link = document.createElement("a");
+    link.href = item.fileUrl; // public S3 URL from backend
+    link.setAttribute("download", item.fileName || "download");
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
   };
 
   const handleDelete = async (id) => {
@@ -79,25 +71,17 @@ function App() {
     }
   };
 
-  // ✅ NEW: inline preview instead of window.open
-  const handleView = async (item) => {
+  // ✅ Inline preview using direct S3 URL
+  const handleView = (item) => {
     try {
-      const response = await downloadFile(item.id);
-
-      const contentType =
-        response.headers["content-type"] ||
-        item.fileType ||
-        "application/octet-stream";
-
-      const blob = new Blob([response.data], { type: contentType });
-      const url = window.URL.createObjectURL(blob);
+      const contentType = item.fileType || "application/octet-stream";
 
       let type = "other";
       if (contentType.includes("pdf")) type = "pdf";
       else if (contentType.startsWith("image/")) type = "image";
       else if (contentType.startsWith("video/")) type = "video";
 
-      setPreviewUrl(url);
+      setPreviewUrl(item.fileUrl); // 🔹 direct S3 URL
       setPreviewType(type);
       setPreviewFileName(item.fileName);
       setPreviewOpen(true);
@@ -108,9 +92,7 @@ function App() {
   };
 
   const closePreview = () => {
-    if (previewUrl) {
-      window.URL.revokeObjectURL(previewUrl);
-    }
+    // no more blob URLs, just clear state
     setPreviewUrl(null);
     setPreviewOpen(false);
   };
@@ -192,8 +174,8 @@ function App() {
               {!isLoading && !isError && (
                 <ContentList
                   contents={data || []}
-                  onDownload={handleDownload}
-                  onView={handleView}
+                  onDownload={handleDownload}   // 🔹 now expects (item)
+                  onView={handleView}           // 🔹 expects (item)
                   onDelete={handleDelete}
                   onShowSummary={handleShowSummary}
                 />
@@ -356,7 +338,7 @@ function App() {
                 <li>Frontend: React, Vite, Tailwind CSS, React Query</li>
                 <li>Backend: Spring Boot, REST API</li>
                 <li>Database: MySQL / PostgreSQL</li>
-                <li>Storage: Local file system (extensible to S3)</li>
+                <li>Storage: AWS S3</li>
               </ul>
             </div>
 
@@ -367,7 +349,7 @@ function App() {
                 <li>Max file size: 100 MB</li>
                 <li>Supported types: PDF, MP4, JPG, PNG</li>
                 <li>Includes file validation &amp; progress display</li>
-                <li>Ready to extend with JWT auth &amp; S3</li>
+                <li>AI summaries powered by Gemini</li>
               </ul>
             </div>
           </div>
@@ -381,7 +363,7 @@ function App() {
             <p className="text-xs text-slate-500">
               Built with{" "}
               <span className="font-medium text-slate-100">
-                React, Tailwind CSS, React Query &amp; Spring Boot
+                React, Tailwind CSS, React Query, Spring Boot &amp; AWS S3
               </span>
             </p>
           </div>
