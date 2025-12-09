@@ -1,117 +1,95 @@
+// src/components/FileUpload.jsx
 import React, { useState } from "react";
-
-const MAX_SIZE_MB = 100;
-const ALLOWED_TYPES = [
-  "application/pdf",
-  "video/mp4",
-  "image/jpeg",
-  "image/png",
-];
 
 function FileUpload({ onUpload }) {
   const [file, setFile] = useState(null);
-  const [error, setError] = useState("");
+  const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
-
-  const handleChange = (e) => {
-    setError("");
-    setProgress(0);
-    const selected = e.target.files[0];
-    if (!selected) return;
-
-    if (!ALLOWED_TYPES.includes(selected.type)) {
-      setError("Invalid file type. Only PDF, MP4, JPG, PNG allowed.");
-      setFile(null);
-      return;
-    }
-
-    const sizeMb = selected.size / (1024 * 1024);
-    if (sizeMb > MAX_SIZE_MB) {
-      setError("File is too large. Max 100MB.");
-      setFile(null);
-      return;
-    }
-
-    setFile(selected);
-  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!file) {
-      setError("Please select a valid file.");
+      alert("Please select a file first.");
       return;
     }
 
-    setError("");
+    setUploading(true);
     setProgress(0);
 
-    await onUpload(file, (event) => {
-      if (!event.total) return;
-      const percent = Math.round((event.loaded * 100) / event.total);
-      setProgress(percent);
-    });
+    try {
+      await onUpload(file, (event) => {
+        if (!event.total) return;
+        const percent = Math.round((event.loaded * 100) / event.total);
+        setProgress(percent);
+      });
 
-    setFile(null);
-    setProgress(0);
-    e.target.reset();
+      setFile(null);
+    } catch (err) {
+      console.error(err);
+      alert("Upload failed");
+    } finally {
+      setTimeout(() => setProgress(0), 500);
+      setUploading(false);
+    }
   };
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
-      <h2 className="text-lg font-semibold text-slate-800 mb-3">
+    <div className="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm p-4">
+      <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100 mb-1">
         Upload Course Content
       </h2>
+      <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">
+        Supported: PDF, MP4, JPG, PNG · Max 100 MB
+      </p>
 
-      <form className="space-y-4" onSubmit={handleSubmit}>
-        <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">
-            Select file
-          </label>
-          <input
-            type="file"
-            onChange={handleChange}
-            className="block w-full text-sm text-slate-700
-                       file:mr-4 file:py-2 file:px-4
-                       file:rounded-full file:border-0
-                       file:text-sm file:font-semibold
-                       file:bg-blue-50 file:text-blue-700
-                       hover:file:bg-blue-100"
-          />
-          <p className="mt-1 text-xs text-slate-500">
-            Allowed: PDF, MP4, JPG, PNG. Max {MAX_SIZE_MB}MB.
-          </p>
-        </div>
+      <form onSubmit={handleSubmit} className="space-y-3">
+        <input
+          type="file"
+          onChange={(e) => setFile(e.target.files?.[0] || null)}
+          className="block w-full text-sm text-slate-900 dark:text-slate-100
+                     file:mr-4 file:py-2 file:px-3
+                     file:rounded-md file:border-0
+                     file:text-sm file:font-semibold
+                     file:bg-sky-600 file:text-white
+                     hover:file:bg-sky-700"
+        />
 
-        {error && (
-          <p className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-md px-3 py-2">
-            {error}
+        {file && (
+          <p className="text-xs text-slate-600 dark:text-slate-300">
+            Selected: <span className="font-medium">{file.name}</span>{" "}
+            ({(file.size / 1024 / 1024).toFixed(2)} MB)
           </p>
         )}
 
-        {progress > 0 && (
-          <div>
-            <div className="flex justify-between items-center mb-1">
-              <span className="text-xs text-slate-600">Uploading...</span>
-              <span className="text-xs text-slate-600">{progress}%</span>
+        <button
+          type="submit"
+          disabled={!file || uploading}
+          className="w-full inline-flex items-center justify-center px-4 py-2
+                     rounded-md text-sm font-medium
+                     bg-sky-600 text-white
+                     hover:bg-sky-700
+                     disabled:opacity-60 disabled:cursor-not-allowed
+                     focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500"
+        >
+          {uploading ? "Uploading..." : "Upload"}
+        </button>
+
+        {uploading && (
+          <div className="mt-2">
+            <div className="flex justify-between text-xs mb-1">
+              <span className="text-slate-500 dark:text-slate-400">Uploading…</span>
+              <span className="text-slate-700 dark:text-slate-200">
+                {progress}%
+              </span>
             </div>
-            <div className="w-full bg-slate-200 rounded-full h-2">
+            <div className="w-full h-2 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
               <div
-                className="bg-blue-600 h-2 rounded-full transition-all"
+                className="h-full bg-emerald-500 transition-[width] duration-150"
                 style={{ width: `${progress}%` }}
               ></div>
             </div>
           </div>
         )}
-
-        <button
-          type="submit"
-          className="inline-flex items-center px-4 py-2 rounded-lg
-                     bg-blue-600 text-white text-sm font-medium
-                     hover:bg-blue-700 focus:outline-none
-                     focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-        >
-          Upload
-        </button>
       </form>
     </div>
   );
