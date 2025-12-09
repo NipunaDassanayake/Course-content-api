@@ -27,16 +27,11 @@ public class CourseContent {
     private LocalDateTime uploadDate;
 
     @Column(name = "file_url", nullable = false)
-    private String fileUrl;
-
+    private String fileUrl;   // now storing S3 key ✅
 
     @Column(columnDefinition = "TEXT")
     private String summary;
 
     @Column(name = "key_points", columnDefinition = "TEXT")
-    private String keyPoints; // we'll save as simple text with bullets or JSON
-
-
-
-
+    private String keyPoints;
 }

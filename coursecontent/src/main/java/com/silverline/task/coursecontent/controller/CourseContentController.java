@@ -45,12 +45,16 @@ public class CourseContentController {
 
     @GetMapping("/{id}/download")
     public ResponseEntity<byte[]> downloadFile(@PathVariable Long id) {
-        CourseContentResponseDTO meta = courseContentService.getContent(id);
-        byte[] data = courseContentService.getFileData(id);
+        CourseContent content = courseContentService.getById(id);
+        byte[] data = courseContentService.getFileData(id); // this reads from S3
 
         HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.parseMediaType(meta.getFileType()));
-        headers.setContentDisposition(ContentDisposition.attachment().filename(meta.getFileName()).build());
+        headers.setContentType(MediaType.parseMediaType(content.getFileType()));
+        headers.setContentDisposition(
+                ContentDisposition.attachment()
+                        .filename(content.getFileName())
+                        .build()
+        );
 
         return new ResponseEntity<>(data, headers, HttpStatus.OK);
     }

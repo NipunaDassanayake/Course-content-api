@@ -23,7 +23,7 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(sess -> sess.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/test/**").permitAll()
+                        .requestMatchers("/api/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/content/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/content/*/summary").permitAll() // or authenticated()
                         .requestMatchers(HttpMethod.POST, "/api/content/**").permitAll()

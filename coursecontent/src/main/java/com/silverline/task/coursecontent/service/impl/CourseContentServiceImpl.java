@@ -11,18 +11,11 @@ import com.silverline.task.coursecontent.service.AiSummarizationService;
 import com.silverline.task.coursecontent.service.CourseContentService;
 import com.silverline.task.coursecontent.service.FileStorageService;
 import com.silverline.task.coursecontent.service.FileTextExtractor;
-import org.apache.pdfbox.pdmodel.PDDocument;
-import org.apache.pdfbox.text.PDFTextStripper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.File;
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -38,11 +31,12 @@ public class CourseContentServiceImpl implements CourseContentService {
 
     private final CourseContentRepository repository;
     private final FileStorageService fileStorageService;
-    private  final FileTextExtractor fileTextExtractor;
+    private final FileTextExtractor fileTextExtractor;
     private final AiSummarizationService aiSummarizationService;
 
     public CourseContentServiceImpl(CourseContentRepository repository,
-                                    FileStorageService fileStorageService , FileTextExtractor fileTextExtractor,
+                                    FileStorageService fileStorageService,
+                                    FileTextExtractor fileTextExtractor,
                                     AiSummarizationService aiSummarizationService) {
         this.repository = repository;
         this.fileStorageService = fileStorageService;
@@ -77,15 +71,16 @@ public class CourseContentServiceImpl implements CourseContentService {
         }
 
         try {
-            String storedPath = fileStorageService.storeFile(file);
-            log.debug("File stored successfully at path: {}", storedPath);
+            // 🔹 Upload to S3 – store the S3 key in fileUrl
+            String key = fileStorageService.storeFile(file);
+            log.debug("File stored successfully in S3 with key: {}", key);
 
             CourseContent entity = new CourseContent();
             entity.setFileName(file.getOriginalFilename());
             entity.setFileType(file.getContentType());
             entity.setFileSize(file.getSize());
             entity.setUploadDate(LocalDateTime.now());
-            entity.setFileUrl(storedPath);
+            entity.setFileUrl(key); // IMPORTANT: now holds S3 key, not local path
 
             CourseContent saved = repository.save(entity);
             log.info("CourseContent entity saved with ID: {}", saved.getId());
@@ -104,7 +99,6 @@ public class CourseContentServiceImpl implements CourseContentService {
         } catch (Exception e) {
             log.error("Error occurred while uploading file with name: {}. Error: {}",
                     file.getOriginalFilename(), e.getMessage(), e);
-            // Pass only the message if FileStorageException doesn't accept cause
             throw new FileStorageException("Error uploading file: " + e.getMessage());
         }
     }
@@ -147,17 +141,11 @@ public class CourseContentServiceImpl implements CourseContentService {
                     return new ResourceNotFoundException("Content not found with id " + id);
                 });
 
-        try {
-            byte[] fileData = Files.readAllBytes(fileStorageService.loadFileAsPath(content.getFileUrl()));
-            log.info("Successfully read file data for content ID: {}, File name: {}, Size: {} bytes",
-                    id, content.getFileName(), fileData.length);
-            return fileData;
-        } catch (IOException e) {
-            log.error("Error occurred while reading file data for content ID: {}, File path: {}. Error: {}",
-                    id, content.getFileUrl(), e.getMessage(), e);
-            // Pass only the message if FileStorageException doesn't accept cause
-            throw new FileStorageException("Error reading file for content ID: " + id);
-        }
+        // 🔹 Read from S3 using S3 key stored in fileUrl
+        byte[] fileData = fileStorageService.readFile(content.getFileUrl());
+        log.info("Successfully read file data for content ID: {}, File name: {}, Size: {} bytes",
+                id, content.getFileName(), fileData.length);
+        return fileData;
     }
 
     private CourseContentResponseDTO toDto(CourseContent entity) {
@@ -167,10 +155,13 @@ public class CourseContentServiceImpl implements CourseContentService {
         dto.setFileType(entity.getFileType());
         dto.setFileSize(entity.getFileSize());
         dto.setUploadDate(entity.getUploadDate());
-        dto.setFileUrl(entity.getFileUrl());
+
+        // 🔹 Convert S3 key -> public URL for the frontend
+        String publicUrl = fileStorageService.getPublicUrl(entity.getFileUrl());
+        dto.setFileUrl(publicUrl);
+
         return dto;
     }
-
 
     @Override
     public void deleteContent(Long id) {
@@ -178,20 +169,21 @@ public class CourseContentServiceImpl implements CourseContentService {
                 .orElseThrow(() ->
                         new ResourceNotFoundException("Content not found with id: " + id));
 
-        // If you store local file path / name, delete file from disk too
+        String storedRef = content.getFileUrl(); // we saved S3 key here
+
         try {
-            // Assuming fileUrl or filePath stores something like "uploads/filename.ext"
-            String filePathStr = content.getFileUrl(); // or getFilePath()
-            if (filePathStr != null) {
-                Path filePath = Paths.get(filePathStr);
-                Files.deleteIfExists(filePath);
+            if (storedRef != null && !storedRef.isBlank()) {
+                // if you're now fully on S3:
+                fileStorageService.deleteFile(storedRef);
             }
         } catch (Exception ex) {
-            // log and continue, so DB still gets cleaned
-            ex.printStackTrace();
+            log.error("Failed to delete file from storage. ref={}, error={}", storedRef, ex.getMessage(), ex);
+            // optional: rethrow if you want to fail the API call
+            // throw new FileStorageException("Failed to delete file from storage");
         }
 
         repository.delete(content);
+        log.info("Deleted CourseContent entity with id={}", id);
     }
 
 
@@ -200,21 +192,15 @@ public class CourseContentServiceImpl implements CourseContentService {
         CourseContent content = repository.findById(contentId)
                 .orElseThrow(() -> new RuntimeException("Content not found with id: " + contentId));
 
-        String filePath = content.getFileUrl(); // local path on disk
-        String text;
+        // 🔹 Load file bytes from S3
+        byte[] fileBytes = fileStorageService.readFile(content.getFileUrl());
 
-        // For now: real extraction only for PDFs
-        if (content.getFileType() != null &&
-                content.getFileType().toLowerCase().contains("pdf")) {
-
-            text = extractTextFromPdf(filePath);
-
-        } else {
-            // Fallback for non-PDF types
-            text = "This file is of type " + content.getFileType()
-                    + " with name " + content.getFileName()
-                    + ". Generate a short high-level description for a student.";
-        }
+        // 🔹 Extract text using FileTextExtractor (PDFBox, etc.)
+        String text = fileTextExtractor.extractText(
+                fileBytes,
+                content.getFileType(),
+                content.getFileName()
+        );
 
         String summary = aiSummarizationService.generateSummary(text);
         String keyPoints = aiSummarizationService.generateKeyPoints(text);
@@ -226,30 +212,9 @@ public class CourseContentServiceImpl implements CourseContentService {
         return new SummaryResponseDTO(content.getId(), summary, keyPoints);
     }
 
-
     @Override
     public CourseContent getById(Long id) {
         return repository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Content not found: " + id));
     }
-
-
-    private String extractTextFromPdf(String filePath) {
-        File file = new File(filePath);
-        if (!file.exists()) {
-            throw new RuntimeException("File not found: " + filePath);
-        }
-
-        try (PDDocument document = PDDocument.load(file)) {
-            PDFTextStripper stripper = new PDFTextStripper();
-            String text = stripper.getText(document);
-            // avoid sending HUGE text to Gemini
-            int maxChars = 8000;
-            return text.length() > maxChars ? text.substring(0, maxChars) : text;
-        } catch (IOException e) {
-            throw new RuntimeException("Failed to read PDF content", e);
-        }
-    }
-
-
 }

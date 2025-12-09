@@ -12,7 +12,5 @@ public class CourseContentResponseDTO {
     private String fileType;
     private Long fileSize;
     private LocalDateTime uploadDate;
-    private String fileUrl;
-
-
+    private String fileUrl;  // S3 key
 }
