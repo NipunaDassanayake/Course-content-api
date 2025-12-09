@@ -1,11 +1,15 @@
 @import "tailwindcss";
 
-/* Minimal globals – let Tailwind classes control layout & colors */
+/* Make dark: utilities use the `.dark` class instead of system theme */
+@custom-variant dark (&:where(.dark, .dark *));
 
+/* Optional: tiny reset, not required but nice to have */
 html,
 body,
 #root {
   height: 100%;
+}
+
+body {
   margin: 0;
-  padding: 0;
 }
