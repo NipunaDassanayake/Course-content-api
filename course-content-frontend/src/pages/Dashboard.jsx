@@ -89,14 +89,14 @@ function Dashboard() {
   const [previewFileName, setPreviewFileName] = useState("");
 
   // Handlers (Upload, Download, etc.) - SAME AS BEFORE
-  const handleUpload = async (file, onUploadProgress) => {
-    try {
-      await uploadFile(file, onUploadProgress);
-      await queryClient.invalidateQueries({ queryKey: ["contents"] });
-    } catch (err) {
-      console.error(err);
-      alert("Upload failed");
-    }
+  const handleUpload = async (file, description, onUploadProgress) => { // ✅ Added description param
+      try {
+        await uploadFile(file, description, onUploadProgress); // ✅ Pass it to API
+        await queryClient.invalidateQueries({ queryKey: ["contents"] });
+      } catch (err) {
+        console.error(err);
+        alert("Upload failed");
+      }
   };
 
   const handleDownload = async (item) => {

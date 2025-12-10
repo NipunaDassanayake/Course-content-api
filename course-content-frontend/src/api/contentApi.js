@@ -16,25 +16,27 @@ api.interceptors.request.use((config) => {
 });
 
 // Auth endpoints
-
 export const login = (data) => api.post("/auth/login", data);
 export const register = (data) => api.post("/auth/register", data);
-
 
 // User endpoints
 export const changePassword = (data) => api.put("/users/password", data);
 
-// Content endpoints (Same as before)
-
+// Content endpoints
 export const fetchContents = () => api.get("/content");
-export const uploadFile = (file, onUploadProgress) => {
+
+// ✅ FIXED: Added 'description' to the arguments list
+export const uploadFile = (file, description, onUploadProgress) => {
   const formData = new FormData();
   formData.append("file", file);
+  formData.append("description", description || "");
+
   return api.post("/content", formData, {
     headers: { "Content-Type": "multipart/form-data" },
     onUploadProgress,
   });
 };
+
 export const downloadFile = (id) => api.get(`/content/${id}/download`, { responseType: "blob" });
 export const deleteContent = (id) => api.delete(`/content/${id}`);
 export const generateSummary = (id) => api.post(`/content/${id}/summary`);

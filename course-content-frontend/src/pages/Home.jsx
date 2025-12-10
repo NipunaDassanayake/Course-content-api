@@ -4,7 +4,7 @@ import { fetchContents, downloadFile, getSummary, generateSummary } from "../api
 import Header from "../components/Header";
 import Footer from "../components/Footer";
 import ProfileModal from "../components/ProfileModal";
-import { FaFilePdf, FaFileAlt, FaRobot, FaDownload, FaEye, FaClock } from "react-icons/fa";
+import { FaFilePdf, FaFileAlt, FaRobot, FaDownload, FaEye, FaClock, FaFileVideo, FaFileImage } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 
 function Home() {
@@ -12,6 +12,7 @@ function Home() {
   const userEmail = localStorage.getItem("userEmail") || "Guest";
   const [profileOpen, setProfileOpen] = useState(false);
 
+  // Dark mode
   const [darkMode, setDarkMode] = useState(document.documentElement.classList.contains("dark"));
 
   const toggleDarkMode = () => {
@@ -26,6 +27,7 @@ function Home() {
     navigate("/");
   };
 
+  // Data Fetching
   const { data: contents, isLoading, isError } = useQuery({
     queryKey: ["contents"],
     queryFn: async () => {
@@ -34,6 +36,7 @@ function Home() {
     },
   });
 
+  // Modals State
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewUrl, setPreviewUrl] = useState(null);
   const [previewType, setPreviewType] = useState(null);
@@ -43,6 +46,7 @@ function Home() {
   const [summaryData, setSummaryData] = useState(null);
   const [summaryLoading, setSummaryLoading] = useState(false);
 
+  // Handlers
   const handleView = (item) => {
     const type = item.fileType.includes("pdf") ? "pdf" : item.fileType.includes("image") ? "image" : item.fileType.includes("video") ? "video" : "other";
     setPreviewUrl(item.fileUrl);
@@ -76,7 +80,9 @@ function Home() {
     finally { setSummaryLoading(false); }
   };
 
+  // Helper to render specific content types
   const renderContentPreview = (item) => {
+    // 1. Image
     if (item.fileType?.startsWith("image/")) {
       return (
         <div
@@ -94,13 +100,21 @@ function Home() {
         </div>
       );
     }
+
+    // 2. Video
     if (item.fileType?.startsWith("video/")) {
       return (
         <div className="w-full bg-black rounded-xl overflow-hidden mb-4 border border-slate-200 dark:border-slate-800 relative group">
-          <video src={item.fileUrl} className="w-full max-h-[400px] object-contain" controls />
+          <video
+            src={item.fileUrl}
+            className="w-full max-h-[400px] object-contain"
+            controls
+          />
         </div>
       );
     }
+
+    // 3. File Card (PDF/Other)
     return (
       <div className="flex gap-4 items-start bg-slate-50 dark:bg-slate-900/50 p-4 rounded-xl border border-slate-100 dark:border-slate-800 mb-4 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-900 transition-colors" onClick={() => handleView(item)}>
         <div className="shrink-0">
@@ -137,11 +151,10 @@ function Home() {
           {!isLoading && contents?.map((item) => (
             <div key={item.id} className="bg-white dark:bg-slate-950 rounded-2xl p-6 shadow-sm border border-slate-200 dark:border-slate-800 hover:shadow-md transition-shadow">
 
-              {/* ✅ UPDATED HEADER: Shows actual uploader */}
+              {/* Header: User & Date */}
               <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-sky-400 to-indigo-500 flex items-center justify-center text-white font-bold text-lg shadow-sm">
-                   {/* Fallback to '?' if user is null (old uploads) */}
-                   {item.uploadedBy ? item.uploadedBy.charAt(0).toUpperCase() : "?"}
+                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-sky-400 to-indigo-500 flex items-center justify-center text-white font-bold text-lg shadow-sm uppercase">
+                   {item.uploadedBy ? item.uploadedBy.charAt(0) : "?"}
                 </div>
                 <div>
                   <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100">
@@ -155,8 +168,16 @@ function Home() {
                 </div>
               </div>
 
+              {/* ✅ Description */}
+              {item.description && (
+                <p className="mb-4 text-sm text-slate-700 dark:text-slate-300 leading-relaxed">
+                  {item.description}
+                </p>
+              )}
+
               {renderContentPreview(item)}
 
+              {/* Actions */}
               <div className="flex items-center justify-between border-t border-slate-100 dark:border-slate-800 pt-4">
                  <div className="flex gap-2">
                     {(!item.fileType?.startsWith("image") && !item.fileType?.startsWith("video")) && (
@@ -164,6 +185,7 @@ function Home() {
                           <FaEye /> Preview
                       </button>
                     )}
+
                     <button onClick={() => handleSummary(item)} className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-colors">
                         <FaRobot /> AI Summary
                     </button>
@@ -178,8 +200,10 @@ function Home() {
       </main>
 
       <Footer />
+
       <ProfileModal isOpen={profileOpen} onClose={() => setProfileOpen(false)} userEmail={userEmail} />
 
+      {/* Preview Modal */}
       {previewOpen && (
         <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
              <div className="bg-white w-full max-w-5xl h-[80vh] rounded-lg relative flex flex-col bg-slate-900">
@@ -193,9 +217,11 @@ function Home() {
         </div>
       )}
 
+      {/* Summary Modal */}
       {summaryOpen && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
           <div className="bg-white dark:bg-slate-950 rounded-2xl shadow-2xl w-full max-w-2xl p-6 max-h-[85vh] overflow-y-auto border border-white/10">
+
             <div className="flex justify-between items-start mb-4">
               <div>
                 <span className="text-xs font-bold text-purple-600 uppercase tracking-wider bg-purple-100 dark:bg-purple-900/30 px-2 py-1 rounded">AI Insight</span>
@@ -203,6 +229,7 @@ function Home() {
               </div>
               <button onClick={() => setSummaryOpen(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-xl font-bold">✕</button>
             </div>
+
             {summaryLoading ? (
                <div className="flex flex-col items-center justify-center py-12 space-y-4">
                  <div className="w-10 h-10 border-4 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
