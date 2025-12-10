@@ -4,7 +4,7 @@ import jakarta.persistence.*;
 import lombok.Data;
 
 import java.time.LocalDateTime;
-// CourseContent.java
+
 @Entity
 @Table(name = "course_content")
 @Data
@@ -27,11 +27,16 @@ public class CourseContent {
     private LocalDateTime uploadDate;
 
     @Column(name = "file_url", nullable = false)
-    private String fileUrl;   // now storing S3 key ✅
+    private String fileUrl;
 
     @Column(columnDefinition = "TEXT")
     private String summary;
 
     @Column(name = "key_points", columnDefinition = "TEXT")
     private String keyPoints;
+
+    // ✅ NEW: Link to the User who uploaded it
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "user_id")
+    private User user;
 }
