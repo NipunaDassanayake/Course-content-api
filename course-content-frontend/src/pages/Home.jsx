@@ -12,7 +12,6 @@ function Home() {
   const userEmail = localStorage.getItem("userEmail") || "Guest";
   const [profileOpen, setProfileOpen] = useState(false);
 
-  // Dark mode
   const [darkMode, setDarkMode] = useState(document.documentElement.classList.contains("dark"));
 
   const toggleDarkMode = () => {
@@ -27,7 +26,6 @@ function Home() {
     navigate("/");
   };
 
-  // Data Fetching
   const { data: contents, isLoading, isError } = useQuery({
     queryKey: ["contents"],
     queryFn: async () => {
@@ -36,7 +34,6 @@ function Home() {
     },
   });
 
-  // Modals State
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewUrl, setPreviewUrl] = useState(null);
   const [previewType, setPreviewType] = useState(null);
@@ -46,7 +43,6 @@ function Home() {
   const [summaryData, setSummaryData] = useState(null);
   const [summaryLoading, setSummaryLoading] = useState(false);
 
-  // Handlers
   const handleView = (item) => {
     const type = item.fileType.includes("pdf") ? "pdf" : item.fileType.includes("image") ? "image" : item.fileType.includes("video") ? "video" : "other";
     setPreviewUrl(item.fileUrl);
@@ -80,9 +76,7 @@ function Home() {
     finally { setSummaryLoading(false); }
   };
 
-  // Helper to render specific content types
   const renderContentPreview = (item) => {
-    // 1. Image
     if (item.fileType?.startsWith("image/")) {
       return (
         <div
@@ -100,21 +94,13 @@ function Home() {
         </div>
       );
     }
-
-    // 2. Video
     if (item.fileType?.startsWith("video/")) {
       return (
         <div className="w-full bg-black rounded-xl overflow-hidden mb-4 border border-slate-200 dark:border-slate-800 relative group">
-          <video
-            src={item.fileUrl}
-            className="w-full max-h-[400px] object-contain"
-            controls
-          />
+          <video src={item.fileUrl} className="w-full max-h-[400px] object-contain" controls />
         </div>
       );
     }
-
-    // 3. File Card (PDF/Other)
     return (
       <div className="flex gap-4 items-start bg-slate-50 dark:bg-slate-900/50 p-4 rounded-xl border border-slate-100 dark:border-slate-800 mb-4 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-900 transition-colors" onClick={() => handleView(item)}>
         <div className="shrink-0">
@@ -151,14 +137,15 @@ function Home() {
           {!isLoading && contents?.map((item) => (
             <div key={item.id} className="bg-white dark:bg-slate-950 rounded-2xl p-6 shadow-sm border border-slate-200 dark:border-slate-800 hover:shadow-md transition-shadow">
 
-              {/* Header: User & Date */}
+              {/* ✅ UPDATED HEADER: Shows actual uploader */}
               <div className="flex items-center gap-3 mb-4">
                 <div className="w-10 h-10 rounded-full bg-gradient-to-br from-sky-400 to-indigo-500 flex items-center justify-center text-white font-bold text-lg shadow-sm">
-                   {item.fileName.charAt(0).toUpperCase()}
+                   {/* Fallback to '?' if user is null (old uploads) */}
+                   {item.uploadedBy ? item.uploadedBy.charAt(0).toUpperCase() : "?"}
                 </div>
                 <div>
                   <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100">
-                     User Upload
+                     {item.uploadedBy || "Anonymous User"}
                   </h3>
                   <div className="flex items-center gap-1 text-xs text-slate-500">
                     <FaClock className="text-[10px]" />
@@ -170,16 +157,13 @@ function Home() {
 
               {renderContentPreview(item)}
 
-              {/* Actions */}
               <div className="flex items-center justify-between border-t border-slate-100 dark:border-slate-800 pt-4">
                  <div className="flex gap-2">
-                    {/* View Button */}
                     {(!item.fileType?.startsWith("image") && !item.fileType?.startsWith("video")) && (
                       <button onClick={() => handleView(item)} className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
                           <FaEye /> Preview
                       </button>
                     )}
-
                     <button onClick={() => handleSummary(item)} className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-colors">
                         <FaRobot /> AI Summary
                     </button>
@@ -194,10 +178,8 @@ function Home() {
       </main>
 
       <Footer />
-
       <ProfileModal isOpen={profileOpen} onClose={() => setProfileOpen(false)} userEmail={userEmail} />
 
-      {/* Preview Modal */}
       {previewOpen && (
         <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
              <div className="bg-white w-full max-w-5xl h-[80vh] rounded-lg relative flex flex-col bg-slate-900">
@@ -211,12 +193,9 @@ function Home() {
         </div>
       )}
 
-      {/* ✅ UPDATED SUMMARY MODAL WITH EMOJIS AND BULLETS */}
       {summaryOpen && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
           <div className="bg-white dark:bg-slate-950 rounded-2xl shadow-2xl w-full max-w-2xl p-6 max-h-[85vh] overflow-y-auto border border-white/10">
-
-            {/* Header */}
             <div className="flex justify-between items-start mb-4">
               <div>
                 <span className="text-xs font-bold text-purple-600 uppercase tracking-wider bg-purple-100 dark:bg-purple-900/30 px-2 py-1 rounded">AI Insight</span>
@@ -224,36 +203,20 @@ function Home() {
               </div>
               <button onClick={() => setSummaryOpen(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-xl font-bold">✕</button>
             </div>
-
-            {/* Loading State */}
-            {summaryLoading && (
+            {summaryLoading ? (
                <div className="flex flex-col items-center justify-center py-12 space-y-4">
                  <div className="w-10 h-10 border-4 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
                  <p className="text-sm text-slate-500 animate-pulse font-medium">Consulting Gemini AI...</p>
                </div>
-            )}
-
-            {/* Content State */}
-            {!summaryLoading && summaryData && (
-              <div className="space-y-6">
-
-                {/* Summary Section */}
+            ) : (
+              summaryData && <div className="space-y-6">
                 <div className="bg-slate-50 dark:bg-slate-900/50 p-5 rounded-xl border border-slate-100 dark:border-slate-800">
-                  <h4 className="font-bold mb-2 flex items-center gap-2 text-slate-700 dark:text-slate-200">
-                    📝 Summary
-                  </h4>
-                  <p className="text-slate-600 dark:text-slate-300 text-sm leading-relaxed whitespace-pre-wrap">
-                    {summaryData.summary}
-                  </p>
+                  <h4 className="font-bold mb-2 flex items-center gap-2 text-slate-700 dark:text-slate-200">📝 Summary</h4>
+                  <p className="text-slate-600 dark:text-slate-300 text-sm leading-relaxed whitespace-pre-wrap">{summaryData.summary}</p>
                 </div>
-
-                {/* Key Points Section */}
                 <div>
-                  <h4 className="font-bold mb-3 flex items-center gap-2 text-slate-700 dark:text-slate-200">
-                    🔑 Key Takeaways
-                  </h4>
+                  <h4 className="font-bold mb-3 flex items-center gap-2 text-slate-700 dark:text-slate-200">🔑 Key Takeaways</h4>
                   <ul className="space-y-2">
-                    {/* Parse text lines and add emojis */}
                     {summaryData.keyPoints?.split("\n").map((line, i) => {
                        const text = line.replace(/^[-•]\s*/, "").trim();
                        if(!text) return null;
