@@ -1,0 +1,312 @@
+import React, { useState, useEffect, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+
+// Components
+import FileUpload from "../components/FileUpload.jsx";
+import ContentList from "../components/ContentList.jsx";
+import Header from "../components/Header.jsx";
+import Footer from "../components/Footer.jsx";
+
+// API
+import {
+  fetchContents,
+  uploadFile,
+  deleteContent,
+  generateSummary,
+  getSummary,
+  downloadFile,
+} from "../api/contentApi.js";
+
+function Dashboard() {
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+
+  // ✅ Get email from storage (default to 'User' if missing)
+  const userEmail = localStorage.getItem("userEmail") || "User";
+
+  // --- LOGOUT LOGIC ---
+  const handleLogout = () => {
+    localStorage.removeItem("token");     // Clear JWT
+    localStorage.removeItem("userEmail"); // ✅ Clear Email
+    navigate("/");
+  };
+
+  // --- EXISTING APP LOGIC BELOW ---
+
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ["contents"],
+    queryFn: async () => {
+      const res = await fetchContents();
+      return res.data;
+    },
+  });
+
+  // Dark mode
+  const [darkMode, setDarkMode] = useState(false);
+  useEffect(() => {
+    const root = document.documentElement;
+    if (darkMode) root.classList.add("dark");
+    else root.classList.remove("dark");
+  }, [darkMode]);
+
+  // Search & Sort
+  const [searchTerm, setSearchTerm] = useState("");
+  const [sortBy, setSortBy] = useState("date_desc");
+
+  const filteredContents = useMemo(() => {
+    if (!data) return [];
+    let items = [...data];
+
+    if (searchTerm.trim()) {
+      const term = searchTerm.toLowerCase();
+      items = items.filter(
+        (item) =>
+          item.fileName?.toLowerCase().includes(term) ||
+          item.fileType?.toLowerCase().includes(term)
+      );
+    }
+
+    items.sort((a, b) => {
+      if (sortBy === "name_asc") return (a.fileName || "").localeCompare(b.fileName || "");
+      if (sortBy === "size_desc") return (b.fileSize || 0) - (a.fileSize || 0);
+      const da = a.uploadDate ? new Date(a.uploadDate) : 0;
+      const db = b.uploadDate ? new Date(b.uploadDate) : 0;
+      return db - da;
+    });
+
+    return items;
+  }, [data, searchTerm, sortBy]);
+
+  // Modals state
+  const [summaryModalOpen, setSummaryModalOpen] = useState(false);
+  const [summaryLoading, setSummaryLoading] = useState(false);
+  const [summaryData, setSummaryData] = useState(null);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState(null);
+  const [previewType, setPreviewType] = useState(null);
+  const [previewFileName, setPreviewFileName] = useState("");
+
+  // Handlers
+  const handleUpload = async (file, onUploadProgress) => {
+    try {
+      await uploadFile(file, onUploadProgress);
+      await queryClient.invalidateQueries({ queryKey: ["contents"] });
+    } catch (err) {
+      console.error(err);
+      alert("Upload failed");
+    }
+  };
+
+  const handleDownload = async (item) => {
+    try {
+      const res = await downloadFile(item.id);
+      const contentType = res.headers["content-type"] || item.fileType || "application/octet-stream";
+      const blob = new Blob([res.data], { type: contentType });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", item.fileName || "download");
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error(err);
+      alert("Download failed");
+    }
+  };
+
+  const handleDelete = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this file?")) return;
+    try {
+      await deleteContent(id);
+      await queryClient.invalidateQueries({ queryKey: ["contents"] });
+    } catch (err) {
+      console.error(err);
+      alert("Failed to delete file");
+    }
+  };
+
+  const handleView = (item) => {
+    try {
+      const contentType = item.fileType || "application/octet-stream";
+      let type = "other";
+      if (contentType.includes("pdf")) type = "pdf";
+      else if (contentType.startsWith("image/")) type = "image";
+      else if (contentType.startsWith("video/")) type = "video";
+
+      setPreviewUrl(item.fileUrl);
+      setPreviewType(type);
+      setPreviewFileName(item.fileName);
+      setPreviewOpen(true);
+    } catch (err) {
+      console.error(err);
+      alert("Failed to open file");
+    }
+  };
+
+  const handleShowSummary = async (item) => {
+    try {
+      setSummaryModalOpen(true);
+      setSummaryLoading(true);
+      setSummaryData(null);
+      const existing = await getSummary(item.id);
+      if (existing.data.summary) {
+        setSummaryData({
+          fileName: item.fileName,
+          summary: existing.data.summary,
+          keyPoints: existing.data.keyPoints,
+        });
+      } else {
+        const res = await generateSummary(item.id);
+        setSummaryData({
+          fileName: item.fileName,
+          summary: res.data.summary,
+          keyPoints: res.data.keyPoints,
+        });
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Failed to load AI summary");
+      setSummaryModalOpen(false);
+    } finally {
+      setSummaryLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100">
+
+      {/* ✅ Pass userEmail to Header */}
+      <Header
+        darkMode={darkMode}
+        setDarkMode={setDarkMode}
+        onLogout={handleLogout}
+        userEmail={userEmail}
+      />
+
+      <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8">
+        <div className="grid gap-8 lg:grid-cols-5">
+          {/* Left: Upload */}
+          <div className="lg:col-span-2">
+            <FileUpload onUpload={handleUpload} />
+          </div>
+
+          {/* Right: Content List */}
+          <div className="lg:col-span-3 bg-white dark:bg-slate-950 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 p-5 flex flex-col h-full">
+            <div className="flex flex-col gap-4 mb-4">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100">
+                  Course Materials
+                </h2>
+                <span className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 px-2.5 py-0.5 rounded-full text-xs font-medium">
+                  {filteredContents.length} Files
+                </span>
+              </div>
+
+              {/* Search + Sort */}
+              <div className="flex flex-col sm:flex-row gap-3">
+                <input
+                  type="text"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder="Search files..."
+                  className="flex-1 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm px-3 py-2 focus:ring-2 focus:ring-sky-500 outline-none"
+                />
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value)}
+                  className="sm:w-40 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm px-3 py-2 focus:ring-2 focus:ring-sky-500 outline-none"
+                >
+                  <option value="date_desc">Newest</option>
+                  <option value="size_desc">Size (Large)</option>
+                  <option value="name_asc">Name (A-Z)</option>
+                </select>
+              </div>
+            </div>
+
+            {isLoading && <p className="text-sm text-slate-500">Loading...</p>}
+            {isError && <p className="text-sm text-red-500">Error loading files</p>}
+            {!isLoading && !isError && (
+              <ContentList
+                contents={filteredContents}
+                onDownload={handleDownload}
+                onView={handleView}
+                onDelete={handleDelete}
+                onShowSummary={handleShowSummary}
+              />
+            )}
+          </div>
+        </div>
+      </main>
+
+      <Footer />
+
+      {/* --- Modals --- */}
+      {previewOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-slate-950 rounded-2xl shadow-2xl w-full max-w-5xl overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="flex justify-between items-center p-4 border-b border-slate-200 dark:border-slate-800">
+              <h3 className="text-lg font-semibold truncate pr-4">{previewFileName}</h3>
+              <button onClick={() => setPreviewOpen(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">✕</button>
+            </div>
+            <div className="flex-1 bg-slate-100 dark:bg-slate-900 p-2 overflow-auto flex justify-center">
+              {previewType === "pdf" && <iframe src={previewUrl} className="w-full h-full min-h-[60vh] rounded-lg bg-white" />}
+              {previewType === "image" && <img src={previewUrl} className="max-h-full object-contain rounded-lg" />}
+              {previewType === "video" && <video src={previewUrl} controls className="max-h-full rounded-lg" />}
+              {previewType === "other" && <p className="self-center">Preview not available. Download to view.</p>}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {summaryModalOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-slate-950 rounded-2xl shadow-2xl w-full max-w-2xl p-6 max-h-[85vh] overflow-y-auto">
+            <div className="flex justify-between items-start mb-4">
+              <div>
+                <span className="text-xs font-bold text-purple-600 uppercase tracking-wider">AI Insight</span>
+                <h3 className="text-xl font-bold mt-1">{summaryData?.fileName}</h3>
+              </div>
+              <button onClick={() => setSummaryModalOpen(false)} className="text-slate-400 hover:text-slate-600">✕</button>
+            </div>
+
+            {summaryLoading && (
+               <div className="flex flex-col items-center justify-center py-12 space-y-4">
+                 <div className="w-8 h-8 border-4 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
+                 <p className="text-sm text-slate-500 animate-pulse">Consulting Gemini AI...</p>
+               </div>
+            )}
+
+            {!summaryLoading && summaryData && (
+              <div className="space-y-6">
+                <div className="bg-slate-50 dark:bg-slate-900/50 p-4 rounded-xl border border-slate-100 dark:border-slate-800">
+                  <h4 className="font-semibold mb-2 flex items-center gap-2">📝 Summary</h4>
+                  <p className="text-slate-600 dark:text-slate-300 text-sm leading-relaxed">{summaryData.summary}</p>
+                </div>
+                <div>
+                  <h4 className="font-semibold mb-3 flex items-center gap-2">🔑 Key Takeaways</h4>
+                  <ul className="space-y-2">
+                    {summaryData.keyPoints?.split("\n").map((line, i) => {
+                       const text = line.replace(/^[-•]\s*/, "").trim();
+                       if(!text) return null;
+                       return (
+                         <li key={i} className="flex gap-3 text-sm text-slate-600 dark:text-slate-300">
+                           <span className="text-green-500 mt-0.5">✓</span>
+                           <span>{text}</span>
+                         </li>
+                       )
+                    })}
+                  </ul>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default Dashboard;
