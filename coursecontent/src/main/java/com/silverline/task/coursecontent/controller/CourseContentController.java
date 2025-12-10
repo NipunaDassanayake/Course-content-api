@@ -10,6 +10,7 @@ import org.springframework.http.*;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.security.Principal;
 import java.util.List;
 
 @RestController
@@ -26,10 +27,15 @@ public class CourseContentController {
     @PostMapping
     public ResponseEntity<UploadResponseDTO> uploadFile(
             @RequestParam("file") MultipartFile file,
-            HttpServletRequest request
+            @RequestParam(value = "description", required = false) String description, // ✅ Accept Description
+            HttpServletRequest request,
+            java.security.Principal principal
     ) {
         String baseUrl = request.getScheme() + "://" + request.getServerName() + ":" + request.getServerPort();
-        UploadResponseDTO dto = courseContentService.uploadFile(file, baseUrl);
+
+        // Pass description to service
+        UploadResponseDTO dto = courseContentService.uploadFile(file, description, baseUrl, principal.getName());
+
         return new ResponseEntity<>(dto, HttpStatus.CREATED);
     }
 
@@ -65,8 +71,6 @@ public class CourseContentController {
         return ResponseEntity.noContent().build(); // 204 No Content
     }
 
-
-
     @PostMapping("/{id}/summary")
     public ResponseEntity<SummaryResponseDTO> generateSummary(@PathVariable Long id) {
         SummaryResponseDTO response = courseContentService.generateAndSaveSummary(id);
@@ -75,8 +79,7 @@ public class CourseContentController {
 
     @GetMapping("/{id}/summary")
     public ResponseEntity<SummaryResponseDTO> getSummary(@PathVariable Long id) {
-        CourseContent content = courseContentService
-                .getById(id); // make this method return entity or wrap
+        CourseContent content = courseContentService.getById(id);
 
         return ResponseEntity.ok(
                 new SummaryResponseDTO(content.getId(), content.getSummary(), content.getKeyPoints())

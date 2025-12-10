@@ -2,7 +2,6 @@ package com.silverline.task.coursecontent.model;
 
 import jakarta.persistence.*;
 import lombok.Data;
-
 import java.time.LocalDateTime;
 
 @Entity
@@ -16,6 +15,10 @@ public class CourseContent {
 
     @Column(name = "file_name", nullable = false)
     private String fileName;
+
+    // ✅ NEW: Description field
+    @Column(columnDefinition = "TEXT")
+    private String description;
 
     @Column(name = "file_type", nullable = false)
     private String fileType;
@@ -35,7 +38,6 @@ public class CourseContent {
     @Column(name = "key_points", columnDefinition = "TEXT")
     private String keyPoints;
 
-    // ✅ NEW: Link to the User who uploaded it
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "user_id")
     private User user;
