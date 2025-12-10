@@ -7,6 +7,7 @@ import FileUpload from "../components/FileUpload.jsx";
 import ContentList from "../components/ContentList.jsx";
 import Header from "../components/Header.jsx";
 import Footer from "../components/Footer.jsx";
+import ProfileModal from "../components/ProfileModal.jsx"; // ✅ New Import
 
 // API
 import {
@@ -21,19 +22,19 @@ import {
 function Dashboard() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-
-  // ✅ Get email from storage (default to 'User' if missing)
   const userEmail = localStorage.getItem("userEmail") || "User";
 
   // --- LOGOUT LOGIC ---
   const handleLogout = () => {
-    localStorage.removeItem("token");     // Clear JWT
-    localStorage.removeItem("userEmail"); // ✅ Clear Email
+    localStorage.removeItem("token");
+    localStorage.removeItem("userEmail");
     navigate("/");
   };
 
-  // --- EXISTING APP LOGIC BELOW ---
+  // --- PROFILE MODAL STATE ---
+  const [profileOpen, setProfileOpen] = useState(false);
 
+  // --- DATA FETCHING ---
   const { data, isLoading, isError } = useQuery({
     queryKey: ["contents"],
     queryFn: async () => {
@@ -87,7 +88,7 @@ function Dashboard() {
   const [previewType, setPreviewType] = useState(null);
   const [previewFileName, setPreviewFileName] = useState("");
 
-  // Handlers
+  // Handlers (Upload, Download, etc.) - SAME AS BEFORE
   const handleUpload = async (file, onUploadProgress) => {
     try {
       await uploadFile(file, onUploadProgress);
@@ -176,14 +177,16 @@ function Dashboard() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100">
+    // ✅ 1. Applied Gradient Background to main container
+    <div className="min-h-screen flex flex-col bg-gradient-to-br from-slate-50 to-sky-50 dark:from-slate-900 dark:to-slate-800 text-slate-900 dark:text-slate-100 font-sans transition-colors duration-300">
 
-      {/* ✅ Pass userEmail to Header */}
+      {/* Header with Profile Trigger */}
       <Header
         darkMode={darkMode}
         setDarkMode={setDarkMode}
         onLogout={handleLogout}
         userEmail={userEmail}
+        onOpenProfile={() => setProfileOpen(true)} // ✅ Trigger
       />
 
       <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8">
@@ -193,14 +196,14 @@ function Dashboard() {
             <FileUpload onUpload={handleUpload} />
           </div>
 
-          {/* Right: Content List */}
-          <div className="lg:col-span-3 bg-white dark:bg-slate-950 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 p-5 flex flex-col h-full">
+          {/* Right: Content List (Card with shadow) */}
+          <div className="lg:col-span-3 bg-white/80 dark:bg-slate-950/80 backdrop-blur-md rounded-2xl shadow-xl border border-white/20 dark:border-slate-800 p-6 flex flex-col h-full transition-all">
             <div className="flex flex-col gap-4 mb-4">
               <div className="flex items-center justify-between">
-                <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100">
+                <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">
                   Course Materials
                 </h2>
-                <span className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 px-2.5 py-0.5 rounded-full text-xs font-medium">
+                <span className="bg-sky-100 dark:bg-sky-900/30 text-sky-700 dark:text-sky-300 px-3 py-1 rounded-full text-xs font-bold shadow-sm">
                   {filteredContents.length} Files
                 </span>
               </div>
@@ -212,12 +215,12 @@ function Dashboard() {
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   placeholder="Search files..."
-                  className="flex-1 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm px-3 py-2 focus:ring-2 focus:ring-sky-500 outline-none"
+                  className="flex-1 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm px-4 py-2.5 focus:ring-2 focus:ring-sky-500 outline-none shadow-sm transition-all"
                 />
                 <select
                   value={sortBy}
                   onChange={(e) => setSortBy(e.target.value)}
-                  className="sm:w-40 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm px-3 py-2 focus:ring-2 focus:ring-sky-500 outline-none"
+                  className="sm:w-40 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm px-4 py-2.5 focus:ring-2 focus:ring-sky-500 outline-none shadow-sm transition-all"
                 >
                   <option value="date_desc">Newest</option>
                   <option value="size_desc">Size (Large)</option>
@@ -226,8 +229,13 @@ function Dashboard() {
               </div>
             </div>
 
-            {isLoading && <p className="text-sm text-slate-500">Loading...</p>}
-            {isError && <p className="text-sm text-red-500">Error loading files</p>}
+            {isLoading && (
+              <div className="flex items-center justify-center py-10">
+                <div className="w-6 h-6 border-2 border-sky-500 border-t-transparent rounded-full animate-spin"></div>
+              </div>
+            )}
+            {isError && <p className="text-sm text-red-500 text-center py-4">Error loading files</p>}
+
             {!isLoading && !isError && (
               <ContentList
                 contents={filteredContents}
@@ -243,57 +251,64 @@ function Dashboard() {
 
       <Footer />
 
-      {/* --- Modals --- */}
+      {/* ✅ 2. Profile Modal */}
+      <ProfileModal
+        isOpen={profileOpen}
+        onClose={() => setProfileOpen(false)}
+        userEmail={userEmail}
+      />
+
+      {/* --- Existing Modals --- */}
       {previewOpen && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
           <div className="bg-white dark:bg-slate-950 rounded-2xl shadow-2xl w-full max-w-5xl overflow-hidden flex flex-col max-h-[90vh]">
             <div className="flex justify-between items-center p-4 border-b border-slate-200 dark:border-slate-800">
               <h3 className="text-lg font-semibold truncate pr-4">{previewFileName}</h3>
-              <button onClick={() => setPreviewOpen(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">✕</button>
+              <button onClick={() => setPreviewOpen(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-xl font-bold">✕</button>
             </div>
             <div className="flex-1 bg-slate-100 dark:bg-slate-900 p-2 overflow-auto flex justify-center">
               {previewType === "pdf" && <iframe src={previewUrl} className="w-full h-full min-h-[60vh] rounded-lg bg-white" />}
               {previewType === "image" && <img src={previewUrl} className="max-h-full object-contain rounded-lg" />}
               {previewType === "video" && <video src={previewUrl} controls className="max-h-full rounded-lg" />}
-              {previewType === "other" && <p className="self-center">Preview not available. Download to view.</p>}
+              {previewType === "other" && <p className="self-center text-slate-500">Preview not available. Download to view.</p>}
             </div>
           </div>
         </div>
       )}
 
       {summaryModalOpen && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-slate-950 rounded-2xl shadow-2xl w-full max-w-2xl p-6 max-h-[85vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-slate-950 rounded-2xl shadow-2xl w-full max-w-2xl p-6 max-h-[85vh] overflow-y-auto border border-white/10">
             <div className="flex justify-between items-start mb-4">
               <div>
-                <span className="text-xs font-bold text-purple-600 uppercase tracking-wider">AI Insight</span>
-                <h3 className="text-xl font-bold mt-1">{summaryData?.fileName}</h3>
+                <span className="text-xs font-bold text-purple-600 uppercase tracking-wider bg-purple-100 dark:bg-purple-900/30 px-2 py-1 rounded">AI Insight</span>
+                <h3 className="text-xl font-bold mt-2 text-slate-800 dark:text-white">{summaryData?.fileName}</h3>
               </div>
-              <button onClick={() => setSummaryModalOpen(false)} className="text-slate-400 hover:text-slate-600">✕</button>
+              <button onClick={() => setSummaryModalOpen(false)} className="text-slate-400 hover:text-slate-600 text-xl font-bold">✕</button>
             </div>
 
             {summaryLoading && (
                <div className="flex flex-col items-center justify-center py-12 space-y-4">
-                 <div className="w-8 h-8 border-4 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
-                 <p className="text-sm text-slate-500 animate-pulse">Consulting Gemini AI...</p>
+                 <div className="w-10 h-10 border-4 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
+                 <p className="text-sm text-slate-500 animate-pulse font-medium">Consulting Gemini AI...</p>
                </div>
             )}
 
             {!summaryLoading && summaryData && (
               <div className="space-y-6">
-                <div className="bg-slate-50 dark:bg-slate-900/50 p-4 rounded-xl border border-slate-100 dark:border-slate-800">
-                  <h4 className="font-semibold mb-2 flex items-center gap-2">📝 Summary</h4>
+                <div className="bg-slate-50 dark:bg-slate-900/50 p-5 rounded-xl border border-slate-100 dark:border-slate-800">
+                  <h4 className="font-bold mb-2 flex items-center gap-2 text-slate-700 dark:text-slate-200">📝 Summary</h4>
                   <p className="text-slate-600 dark:text-slate-300 text-sm leading-relaxed">{summaryData.summary}</p>
                 </div>
                 <div>
-                  <h4 className="font-semibold mb-3 flex items-center gap-2">🔑 Key Takeaways</h4>
+                  <h4 className="font-bold mb-3 flex items-center gap-2 text-slate-700 dark:text-slate-200">🔑 Key Takeaways</h4>
                   <ul className="space-y-2">
                     {summaryData.keyPoints?.split("\n").map((line, i) => {
                        const text = line.replace(/^[-•]\s*/, "").trim();
                        if(!text) return null;
                        return (
-                         <li key={i} className="flex gap-3 text-sm text-slate-600 dark:text-slate-300">
-                           <span className="text-green-500 mt-0.5">✓</span>
+                         <li key={i} className="flex gap-3 text-sm text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-900 p-2 rounded-lg border border-slate-100 dark:border-slate-800">
+                           <span className="text-emerald-500 font-bold">✓</span>
                            <span>{text}</span>
                          </li>
                        )
