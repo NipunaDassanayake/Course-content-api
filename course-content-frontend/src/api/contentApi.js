@@ -16,10 +16,16 @@ api.interceptors.request.use((config) => {
 });
 
 // Auth endpoints
+
 export const login = (data) => api.post("/auth/login", data);
 export const register = (data) => api.post("/auth/register", data);
 
+
+// User endpoints
+export const changePassword = (data) => api.put("/users/password", data);
+
 // Content endpoints (Same as before)
+
 export const fetchContents = () => api.get("/content");
 export const uploadFile = (file, onUploadProgress) => {
   const formData = new FormData();
