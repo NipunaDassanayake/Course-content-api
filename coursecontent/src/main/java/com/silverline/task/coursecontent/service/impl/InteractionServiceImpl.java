@@ -1,11 +1,10 @@
 package com.silverline.task.coursecontent.service.impl;
 
 import com.silverline.task.coursecontent.controller.dto.response.CommentDTO;
-import com.silverline.task.coursecontent.exceptions.ResourceNotFoundException;
 import com.silverline.task.coursecontent.model.Comment;
 import com.silverline.task.coursecontent.model.CourseContent;
 import com.silverline.task.coursecontent.model.User;
-import com.silverline.task.coursecontent.repository.CommentRepository; // You need to create this simple interface
+import com.silverline.task.coursecontent.repository.CommentRepository;
 import com.silverline.task.coursecontent.repository.CourseContentRepository;
 import com.silverline.task.coursecontent.repository.UserRepository;
 import com.silverline.task.coursecontent.service.InteractionService;
@@ -44,7 +43,10 @@ public class InteractionServiceImpl implements InteractionService {
         User user = userRepository.findByEmail(userEmail).orElseThrow();
 
         Comment comment = new Comment();
-        comment.setText(text.replace("\"", "")); // specific cleanup if raw string sent
+
+        // ✅ No replacement needed; text is clean from controller
+        comment.setText(text);
+
         comment.setUser(user);
         comment.setCourseContent(content);
 

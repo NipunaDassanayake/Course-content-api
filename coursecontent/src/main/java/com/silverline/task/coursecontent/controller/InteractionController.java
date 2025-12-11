@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.security.Principal;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/interactions")
@@ -24,12 +25,14 @@ public class InteractionController {
         return ResponseEntity.ok().build();
     }
 
-    // ✅ Add Comment
+    // ✅ FIX: Accept JSON Object (Map) instead of String
     @PostMapping("/{contentId}/comment")
     public ResponseEntity<CommentDTO> addComment(
             @PathVariable Long contentId,
-            @RequestBody String text,
+            @RequestBody Map<String, String> payload, // Changed from String to Map
             Principal principal) {
+
+        String text = payload.get("content"); // Extract text from JSON
         return ResponseEntity.ok(interactionService.addComment(contentId, text, principal.getName()));
     }
 
