@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   fetchContents,
@@ -17,11 +17,12 @@ import {
   FaEye, FaClock, FaFileVideo, FaFileImage,
   FaShareAlt, FaComments, FaHeart, FaRegHeart, FaComment
 } from "react-icons/fa";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom"; // ✅ Import useSearchParams
 
 function Home() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const [searchParams, setSearchParams] = useSearchParams(); // ✅ Initialize Params
   const userEmail = localStorage.getItem("userEmail") || "Guest";
 
   // State
@@ -55,7 +56,6 @@ function Home() {
   const likeMutation = useMutation({
     mutationFn: (id) => toggleLike(id),
     onSuccess: () => {
-      // Refetch contents to update like counts/status instantly
       queryClient.invalidateQueries(["contents"]);
     },
   });
@@ -76,6 +76,19 @@ function Home() {
   const [commentsOpen, setCommentsOpen] = useState(false);
   const [commentsContentId, setCommentsContentId] = useState(null);
 
+  // ✅ EFFECT: Open Comments from Notification Link
+  useEffect(() => {
+    const contentIdToOpen = searchParams.get("openComments");
+
+    if (contentIdToOpen) {
+      setCommentsContentId(Number(contentIdToOpen)); // Set Content ID
+      setCommentsOpen(true); // Open Modal
+
+      // Clean URL so it doesn't reopen on refresh
+      setSearchParams({});
+    }
+  }, [searchParams, setSearchParams]);
+
   // --- HANDLERS ---
 
   const handleLike = (id) => {
@@ -87,7 +100,6 @@ function Home() {
     setCommentsOpen(true);
   };
 
-  // ✅ New Handler: Triggered when a comment is successfully added
   const handleCommentAdded = () => {
     queryClient.invalidateQueries(["contents"]);
   };
@@ -255,10 +267,7 @@ function Home() {
               {/* Actions */}
               <div className="flex items-center justify-between border-t border-slate-100 dark:border-slate-800 pt-4">
 
-                 {/* Left Side: Interactions & AI */}
                  <div className="flex gap-4">
-
-                    {/* Like Button */}
                     <button
                       onClick={() => handleLike(item.id)}
                       className={`flex items-center gap-1.5 text-sm font-medium transition-colors ${item.likedByCurrentUser ? "text-red-500" : "text-slate-500 hover:text-red-500"}`}
@@ -267,7 +276,6 @@ function Home() {
                         <span>{item.likeCount || 0}</span>
                     </button>
 
-                    {/* Comment Button */}
                     <button
                       onClick={() => handleComments(item.id)}
                       className="flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-sky-600 transition-colors"
@@ -276,20 +284,17 @@ function Home() {
                         <span>{item.commentCount || 0}</span>
                     </button>
 
-                    {/* Chat Button */}
                     <button onClick={() => handleChat(item)} className="flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-purple-600 transition-colors">
                         <FaComments />
                         <span className="hidden sm:inline">Chat</span>
                     </button>
 
-                    {/* AI Summary */}
                     <button onClick={() => handleSummary(item)} className="flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-emerald-600 transition-colors">
                         <FaRobot />
                         <span className="hidden sm:inline">Summary</span>
                     </button>
                  </div>
 
-                 {/* Right Side: Share & Download */}
                  <div className="flex gap-1">
                     <button onClick={() => handleShare(item)} className="p-2 rounded-full text-slate-400 hover:text-sky-600 hover:bg-sky-50 dark:hover:bg-sky-900/20 transition-colors" title="Share">
                       <FaShareAlt />
@@ -319,7 +324,7 @@ function Home() {
         isOpen={commentsOpen}
         onClose={() => setCommentsOpen(false)}
         contentId={commentsContentId}
-        onCommentAdded={handleCommentAdded} // ✅ Pass Handler
+        onCommentAdded={handleCommentAdded}
       />
 
       <ProfileModal isOpen={profileOpen} onClose={() => setProfileOpen(false)} userEmail={userEmail} />

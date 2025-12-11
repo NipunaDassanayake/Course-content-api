@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from "react";
 import { FaBell, FaTimes, FaHeart, FaComment, FaUserCircle } from "react-icons/fa";
 import { getNotifications, markNotificationRead, markAllNotificationsRead } from "../api/contentApi";
+import { useNavigate } from "react-router-dom"; // ✅ Import useNavigate
 
 function NotificationsModal({ isOpen, onClose }) {
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(false);
+  const navigate = useNavigate(); // ✅ Initialize navigation
 
   useEffect(() => {
     if (isOpen) {
@@ -16,12 +18,11 @@ function NotificationsModal({ isOpen, onClose }) {
     setLoading(true);
     try {
       const res = await getNotifications();
-      // ✅ Safety Check: Ensure data is an array before setting
+      // Safety Check: Ensure data is an array
       if (Array.isArray(res.data)) {
           setNotifications(res.data);
       } else {
-          console.warn("Unexpected notification data format:", res.data);
-          setNotifications([]); // Fallback to empty array
+          setNotifications([]);
       }
     } catch (e) {
         console.error("Failed to fetch notifications:", e);
@@ -30,22 +31,30 @@ function NotificationsModal({ isOpen, onClose }) {
     finally { setLoading(false); }
   };
 
-  const handleRead = async (id) => {
-    try {
-        await markNotificationRead(id);
-        // Optimistically update UI
-        setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
-    } catch (e) {
-        console.error("Failed to mark read", e);
-    }
-  };
-
   const handleMarkAll = async () => {
     try {
         await markAllNotificationsRead();
         setNotifications(prev => prev.map(n => ({ ...n, read: true })));
     } catch (e) {
         console.error("Failed to mark all read", e);
+    }
+  };
+
+  // ✅ New Handler: Click Notification -> Redirect to Comments
+  const handleNotificationClick = async (notification) => {
+    // 1. Mark as read in backend if not already
+    if (!notification.read) {
+        try {
+            await markNotificationRead(notification.id);
+        } catch(e) { console.error(e); }
+    }
+
+    // 2. Close the modal
+    onClose();
+
+    // 3. Redirect to Home with query param to open comments
+    if (notification.contentId) {
+      navigate(`/home?openComments=${notification.contentId}`);
     }
   };
 
@@ -88,7 +97,7 @@ function NotificationsModal({ isOpen, onClose }) {
             ) : (
                notifications.map(n => (
                  <div key={n.id}
-                      onClick={() => !n.read && handleRead(n.id)}
+                      onClick={() => handleNotificationClick(n)} // ✅ Use new handler
                       className={`group p-3 mb-2 rounded-xl flex gap-3 cursor-pointer transition-all border relative overflow-hidden
                         ${n.read
                             ? 'bg-white dark:bg-slate-950 border-transparent opacity-70 hover:opacity-100'
