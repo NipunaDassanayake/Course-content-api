@@ -7,10 +7,11 @@ import java.time.LocalDateTime;
 public class CourseContentResponseDTO {
     private Long id;
     private String fileName;
-    private String description; // ✅ Add this
+    private String description;
     private String fileType;
     private Long fileSize;
     private LocalDateTime uploadDate;
     private String fileUrl;
     private String uploadedBy;
+    private String uploaderImage;   // ✅ New Field for Profile Picture
 }

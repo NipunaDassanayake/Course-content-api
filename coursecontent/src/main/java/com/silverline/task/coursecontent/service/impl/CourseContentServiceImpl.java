@@ -126,24 +126,25 @@ public class CourseContentServiceImpl implements CourseContentService {
         return fileStorageService.readFile(content.getFileUrl());
     }
 
+
+
     private CourseContentResponseDTO toDto(CourseContent entity) {
         CourseContentResponseDTO dto = new CourseContentResponseDTO();
         dto.setId(entity.getId());
         dto.setFileName(entity.getFileName());
-        dto.setDescription(entity.getDescription()); // ✅ Map Description
+        dto.setDescription(entity.getDescription());
         dto.setFileType(entity.getFileType());
         dto.setFileSize(entity.getFileSize());
         dto.setUploadDate(entity.getUploadDate());
+        dto.setFileUrl(fileStorageService.getPublicUrl(entity.getFileUrl()));
 
-        // 🔹 S3 Public URL
-        String publicUrl = fileStorageService.getPublicUrl(entity.getFileUrl());
-        dto.setFileUrl(publicUrl);
-
-        // Map Uploaded By (User Email)
         if (entity.getUser() != null) {
             dto.setUploadedBy(entity.getUser().getEmail());
+            // ✅ Map the profile picture
+            dto.setUploaderImage(entity.getUser().getProfilePicture());
         } else {
             dto.setUploadedBy("Anonymous");
+            dto.setUploaderImage(null);
         }
 
         return dto;
