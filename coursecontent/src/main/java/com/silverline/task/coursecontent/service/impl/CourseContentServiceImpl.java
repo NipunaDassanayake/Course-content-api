@@ -52,7 +52,6 @@ public class CourseContentServiceImpl implements CourseContentService {
     }
 
     @Override
-    // ✅ Updated signature to accept 'description'
     public UploadResponseDTO uploadFile(MultipartFile file, String description, String baseDownloadUrl, String userEmail) {
         log.info("Starting file upload process. File name: {}, User: {}, Size: {} bytes",
                 file.getOriginalFilename(), userEmail, file.getSize());
@@ -126,8 +125,6 @@ public class CourseContentServiceImpl implements CourseContentService {
         return fileStorageService.readFile(content.getFileUrl());
     }
 
-
-
     private CourseContentResponseDTO toDto(CourseContent entity) {
         CourseContentResponseDTO dto = new CourseContentResponseDTO();
         dto.setId(entity.getId());
@@ -139,9 +136,13 @@ public class CourseContentServiceImpl implements CourseContentService {
         dto.setFileUrl(fileStorageService.getPublicUrl(entity.getFileUrl()));
 
         if (entity.getUser() != null) {
-            dto.setUploadedBy(entity.getUser().getEmail());
-            // ✅ Map the profile picture
-            dto.setUploaderImage(entity.getUser().getProfilePicture());
+            // ✅ LOGIC: Use Name if available, otherwise fallback to Email
+            String displayName = (entity.getUser().getName() != null && !entity.getUser().getName().isEmpty())
+                    ? entity.getUser().getName()
+                    : entity.getUser().getEmail();
+
+            dto.setUploadedBy(displayName); // This sets the name or email in the DTO
+            dto.setUploaderImage(entity.getUser().getProfilePicture()); // Map profile picture
         } else {
             dto.setUploadedBy("Anonymous");
             dto.setUploaderImage(null);
@@ -199,7 +200,6 @@ public class CourseContentServiceImpl implements CourseContentService {
     @Override
     public List<CourseContentResponseDTO> getMyContents(String userEmail) {
         log.debug("Fetching contents for user: {}", userEmail);
-        // ✅ Use the new repository method
         return repository.findAllByUserEmail(userEmail)
                 .stream()
                 .map(this::toDto)
@@ -211,13 +211,12 @@ public class CourseContentServiceImpl implements CourseContentService {
         CourseContent content = repository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Content not found with id: " + id));
 
-        // ✅ SECURITY CHECK: Ensure the logged-in user owns this file
+        // ✅ SECURITY CHECK
         if (!content.getUser().getEmail().equals(userEmail)) {
             log.warn("User {} tried to delete content {} owned by {}", userEmail, id, content.getUser().getEmail());
-            throw new RuntimeException("Unauthorized: You do not own this content"); // Or throw AccessDeniedException
+            throw new RuntimeException("Unauthorized: You do not own this content");
         }
 
-        // Proceed with deletion logic...
         String storedRef = content.getFileUrl();
         try {
             if (storedRef != null && !storedRef.isBlank()) {
@@ -230,6 +229,4 @@ public class CourseContentServiceImpl implements CourseContentService {
         repository.delete(content);
         log.info("Deleted CourseContent entity with id={}", id);
     }
-
-
 }

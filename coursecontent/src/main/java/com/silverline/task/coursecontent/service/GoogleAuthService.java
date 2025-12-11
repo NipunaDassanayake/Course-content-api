@@ -40,7 +40,8 @@ public class GoogleAuthService {
             if (idToken != null) {
                 GoogleIdToken.Payload payload = idToken.getPayload();
                 String email = payload.getEmail();
-                String pictureUrl = (String) payload.get("picture"); // ✅ Extract Profile Picture
+                String pictureUrl = (String) payload.get("picture");
+                String name = (String) payload.get("name"); // ✅ Extract Name
 
                 // Check if user exists, if not create one
                 User user = userRepository.findByEmail(email).orElseGet(() -> {
@@ -50,13 +51,14 @@ public class GoogleAuthService {
                     newUser.setPassword(passwordEncoder.encode(UUID.randomUUID().toString()));
                     newUser.setRole("USER");
                     newUser.setAuthProvider(AuthProvider.GOOGLE);
-                    newUser.setProfilePicture(pictureUrl); // ✅ Save picture for new users
+                    newUser.setProfilePicture(pictureUrl);
+                    newUser.setName(name); // ✅ Save Name for new users
                     return userRepository.save(newUser);
                 });
 
                 boolean userUpdated = false;
 
-                // ✅ Update AuthProvider if missing (for existing users)
+                // ✅ Update AuthProvider if missing
                 if (user.getAuthProvider() == null) {
                     user.setAuthProvider(AuthProvider.GOOGLE);
                     userUpdated = true;
@@ -65,6 +67,12 @@ public class GoogleAuthService {
                 // ✅ Update Profile Picture if missing or changed
                 if (pictureUrl != null && !pictureUrl.equals(user.getProfilePicture())) {
                     user.setProfilePicture(pictureUrl);
+                    userUpdated = true;
+                }
+
+                // ✅ Update Name if missing (e.g. for existing users)
+                if (name != null && user.getName() == null) {
+                    user.setName(name);
                     userUpdated = true;
                 }
 

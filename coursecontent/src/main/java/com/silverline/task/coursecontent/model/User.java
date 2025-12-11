@@ -31,6 +31,9 @@ public class User implements UserDetails {
     @Column(name = "profile_picture", columnDefinition = "TEXT")
     private String profilePicture;
 
+    @Column(name = "name")
+    private String name;
+
     // -- UserDetails methods --
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
