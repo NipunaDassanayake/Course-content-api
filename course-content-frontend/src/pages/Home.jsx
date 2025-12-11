@@ -4,11 +4,11 @@ import { fetchContents, downloadFile, getSummary, generateSummary } from "../api
 import Header from "../components/Header";
 import Footer from "../components/Footer";
 import ProfileModal from "../components/ProfileModal";
-import ChatModal from "../components/ChatModal"; // ✅ Import ChatModal
+import ChatModal from "../components/ChatModal";
 import {
   FaFilePdf, FaFileAlt, FaRobot, FaDownload,
   FaEye, FaClock, FaFileVideo, FaFileImage,
-  FaShareAlt, FaComments // ✅ Import Chat Icon
+  FaShareAlt, FaComments
 } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 
@@ -51,13 +51,12 @@ function Home() {
   const [summaryData, setSummaryData] = useState(null);
   const [summaryLoading, setSummaryLoading] = useState(false);
 
-  // ✅ Chat State
+  // Chat State
   const [chatOpen, setChatOpen] = useState(false);
   const [chatFile, setChatFile] = useState({ id: null, name: "" });
 
   // --- HANDLERS ---
 
-  // ✅ Chat Handler
   const handleChat = (item) => {
     setChatFile({ id: item.id, name: item.fileName });
     setChatOpen(true);
@@ -181,11 +180,23 @@ function Home() {
           {!isLoading && contents?.map((item) => (
             <div key={item.id} className="bg-white dark:bg-slate-950 rounded-2xl p-6 shadow-sm border border-slate-200 dark:border-slate-800 hover:shadow-md transition-shadow">
 
-              {/* Header */}
+              {/* ✅ Header: User Profile Picture & Date */}
               <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-sky-400 to-indigo-500 flex items-center justify-center text-white font-bold text-lg shadow-sm uppercase">
-                   {item.uploadedBy ? item.uploadedBy.charAt(0) : "?"}
-                </div>
+
+                {/* Logic: Show Image if exists, else show Initial */}
+                {item.uploaderImage ? (
+                  <img
+                    src={item.uploaderImage}
+                    alt="Uploader"
+                    referrerPolicy="no-referrer"
+                    className="w-10 h-10 rounded-full border border-slate-200 dark:border-slate-700 object-cover"
+                  />
+                ) : (
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-sky-400 to-indigo-500 flex items-center justify-center text-white font-bold text-lg shadow-sm uppercase">
+                     {item.uploadedBy ? item.uploadedBy.charAt(0) : "?"}
+                  </div>
+                )}
+
                 <div>
                   <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100">
                      {item.uploadedBy || "Anonymous User"}
@@ -219,7 +230,6 @@ function Home() {
                       </button>
                     )}
 
-                    {/* ✅ Chat Button Added Here */}
                     <button onClick={() => handleChat(item)} className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-sky-600 hover:bg-sky-50 dark:hover:bg-sky-900/20 transition-colors">
                         <FaComments /> Chat
                     </button>
@@ -255,7 +265,6 @@ function Home() {
 
       <Footer />
 
-      {/* ✅ Chat Modal Added Here */}
       <ChatModal
         isOpen={chatOpen}
         onClose={() => setChatOpen(false)}
