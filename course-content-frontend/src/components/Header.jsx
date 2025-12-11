@@ -1,9 +1,12 @@
 import React from "react";
-import { Link, useLocation } from "react-router-dom"; // Import useLocation
+import { Link, useLocation } from "react-router-dom";
 import { FaCloudUploadAlt, FaMoon, FaSun, FaSignOutAlt, FaUserCircle, FaCog, FaHome, FaColumns } from "react-icons/fa";
 
 function Header({ darkMode, setDarkMode, onLogout, userEmail, onOpenProfile }) {
-  const location = useLocation(); // Get current route
+  const location = useLocation();
+
+  // ✅ Get Avatar URL from local storage
+  const userAvatar = localStorage.getItem("userAvatar");
 
   const isActive = (path) => location.pathname === path
     ? "text-sky-600 dark:text-sky-400 bg-sky-50 dark:bg-sky-900/20"
@@ -24,7 +27,7 @@ function Header({ darkMode, setDarkMode, onLogout, userEmail, onOpenProfile }) {
             </div>
           </Link>
 
-          {/* ✅ CENTER NAVIGATION */}
+          {/* Center Navigation */}
           <nav className="hidden md:flex items-center gap-1 bg-slate-100 dark:bg-slate-900/50 p-1 rounded-xl border border-slate-200 dark:border-slate-800">
             <Link to="/home" className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${isActive("/home")}`}>
               <FaHome /> Home
@@ -44,7 +47,19 @@ function Header({ darkMode, setDarkMode, onLogout, userEmail, onOpenProfile }) {
 
             {userEmail && (
               <button onClick={onOpenProfile} className="hidden sm:flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-900 hover:bg-slate-200 dark:hover:bg-slate-800 px-3 py-1.5 rounded-full border border-slate-200 dark:border-slate-800 transition-all cursor-pointer group">
-                <FaUserCircle className="text-slate-400 group-hover:text-sky-500 transition-colors text-lg" />
+
+                {/* ✅ Show Image with Referrer Fix */}
+                {userAvatar ? (
+                    <img
+                      src={userAvatar}
+                      alt="Profile"
+                      referrerPolicy="no-referrer"
+                      className="w-6 h-6 rounded-full border border-slate-300 dark:border-slate-600 object-cover"
+                    />
+                ) : (
+                    <FaUserCircle className="text-slate-400 group-hover:text-sky-500 transition-colors text-lg" />
+                )}
+
                 <span className="font-medium">{userEmail}</span>
                 <FaCog className="text-slate-400 text-xs ml-1 group-hover:rotate-90 transition-transform" />
               </button>

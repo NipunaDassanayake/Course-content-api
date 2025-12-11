@@ -1,9 +1,9 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { login, googleLogin } from "../api/contentApi"; // ✅ Import googleLogin
+import { login, googleLogin } from "../api/contentApi";
 import { FaLock, FaEnvelope, FaGithub, FaTwitter, FaLinkedin } from "react-icons/fa";
-import { GoogleLogin } from "@react-oauth/google"; // ✅ Import Google Component
-import { jwtDecode } from "jwt-decode"; // ✅ Import decoder
+import { GoogleLogin } from "@react-oauth/google";
+import { jwtDecode } from "jwt-decode";
 import logo from "../assets/lernLogo.png";
 
 function Login() {
@@ -24,7 +24,14 @@ function Login() {
       localStorage.setItem("token", res.data.token);
       localStorage.setItem("userEmail", res.data.email);
 
-      navigate("/home"); // ✅ Redirect to Home Feed
+      // ✅ Handle Profile Picture for Local Login (if backend supports it)
+      if (res.data.profilePicture) {
+        localStorage.setItem("userAvatar", res.data.profilePicture);
+      } else {
+        localStorage.removeItem("userAvatar");
+      }
+
+      navigate("/home");
     } catch (err) {
       setError("Invalid email or password");
     } finally {
@@ -42,11 +49,18 @@ function Login() {
       // Save Token
       localStorage.setItem("token", res.data.token);
 
-      // Decode JWT to get email (safe fallback if response doesn't have email directly)
+      // Decode JWT to get email
       const decoded = jwtDecode(res.data.token);
       localStorage.setItem("userEmail", decoded.sub);
 
-      navigate("/home"); // ✅ Redirect to Home Feed
+      // ✅ CRITICAL: Save Profile Picture from Response
+      if (res.data.profilePicture) {
+        localStorage.setItem("userAvatar", res.data.profilePicture);
+      } else {
+        localStorage.removeItem("userAvatar");
+      }
+
+      navigate("/home");
     } catch (err) {
       console.error(err);
       setError("Google Login Failed");
