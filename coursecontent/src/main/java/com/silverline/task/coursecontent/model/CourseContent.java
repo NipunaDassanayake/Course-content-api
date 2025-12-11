@@ -3,6 +3,8 @@ package com.silverline.task.coursecontent.model;
 import jakarta.persistence.*;
 import lombok.Data;
 import java.time.LocalDateTime;
+import java.util.HashSet;
+import java.util.Set;
 
 @Entity
 @Table(name = "course_content")
@@ -41,4 +43,17 @@ public class CourseContent {
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "user_id")
     private User user;
+
+    // ✅ Likes: A set of users who liked this content
+    @ManyToMany
+    @JoinTable(
+            name = "content_likes",
+            joinColumns = @JoinColumn(name = "content_id"),
+            inverseJoinColumns = @JoinColumn(name = "user_id")
+    )
+    private Set<User> likes = new HashSet<>();
+
+    // ✅ Comments: List of comments
+    @OneToMany(mappedBy = "courseContent", cascade = CascadeType.ALL, orphanRemoval = true)
+    private Set<Comment> comments = new HashSet<>();
 }
