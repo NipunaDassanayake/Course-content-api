@@ -11,7 +11,7 @@ import Header from "../components/Header";
 import Footer from "../components/Footer";
 import ProfileModal from "../components/ProfileModal";
 import ChatModal from "../components/ChatModal";
-import CommentsModal from "../components/CommentsModal"; // ✅ Import CommentsModal
+import CommentsModal from "../components/CommentsModal";
 import {
   FaFilePdf, FaFileAlt, FaRobot, FaDownload,
   FaEye, FaClock, FaFileVideo, FaFileImage,
@@ -43,7 +43,7 @@ function Home() {
   };
 
   // --- DATA FETCHING ---
-  const { data: contents, isLoading, isError, refetch } = useQuery({
+  const { data: contents, isLoading, isError } = useQuery({
     queryKey: ["contents"],
     queryFn: async () => {
       const res = await fetchContents();
@@ -73,7 +73,6 @@ function Home() {
   const [chatOpen, setChatOpen] = useState(false);
   const [chatFile, setChatFile] = useState({ id: null, name: "" });
 
-  // ✅ Comments State
   const [commentsOpen, setCommentsOpen] = useState(false);
   const [commentsContentId, setCommentsContentId] = useState(null);
 
@@ -86,6 +85,11 @@ function Home() {
   const handleComments = (id) => {
     setCommentsContentId(id);
     setCommentsOpen(true);
+  };
+
+  // ✅ New Handler: Triggered when a comment is successfully added
+  const handleCommentAdded = () => {
+    queryClient.invalidateQueries(["contents"]);
   };
 
   const handleChat = (item) => {
@@ -315,6 +319,7 @@ function Home() {
         isOpen={commentsOpen}
         onClose={() => setCommentsOpen(false)}
         contentId={commentsContentId}
+        onCommentAdded={handleCommentAdded} // ✅ Pass Handler
       />
 
       <ProfileModal isOpen={profileOpen} onClose={() => setProfileOpen(false)} userEmail={userEmail} />

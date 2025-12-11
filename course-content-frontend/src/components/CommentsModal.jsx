@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { FaPaperPlane, FaTimes, FaUserCircle } from "react-icons/fa";
 import { getComments, addComment } from "../api/contentApi";
 
-function CommentsModal({ isOpen, onClose, contentId }) {
+function CommentsModal({ isOpen, onClose, contentId, onCommentAdded }) {
   const [comments, setComments] = useState([]);
   const [newComment, setNewComment] = useState("");
   const [loading, setLoading] = useState(false);
@@ -39,6 +39,12 @@ function CommentsModal({ isOpen, onClose, contentId }) {
       // Add new comment to the top of the list immediately
       setComments([res.data, ...comments]);
       setNewComment("");
+
+      // ✅ Notify Home to refresh the comment count
+      if (onCommentAdded) {
+        onCommentAdded();
+      }
+
     } catch (error) {
       console.error("Failed to post comment", error);
     } finally {
