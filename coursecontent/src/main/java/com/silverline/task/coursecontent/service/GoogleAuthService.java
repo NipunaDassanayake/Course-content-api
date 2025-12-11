@@ -4,7 +4,7 @@ import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
 import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.gson.GsonFactory;
-import com.silverline.task.coursecontent.model.AuthProvider; // ✅ Import AuthProvider
+import com.silverline.task.coursecontent.model.AuthProvider;
 import com.silverline.task.coursecontent.model.User;
 import com.silverline.task.coursecontent.repository.UserRepository;
 import com.silverline.task.coursecontent.security.JwtService;
@@ -40,6 +40,7 @@ public class GoogleAuthService {
             if (idToken != null) {
                 GoogleIdToken.Payload payload = idToken.getPayload();
                 String email = payload.getEmail();
+                String pictureUrl = (String) payload.get("picture"); // ✅ Extract Profile Picture
 
                 // Check if user exists, if not create one
                 User user = userRepository.findByEmail(email).orElseGet(() -> {
@@ -48,16 +49,26 @@ public class GoogleAuthService {
                     // Set a dummy random password for Google users
                     newUser.setPassword(passwordEncoder.encode(UUID.randomUUID().toString()));
                     newUser.setRole("USER");
-
-                    // ✅ Set AuthProvider to GOOGLE for new users
                     newUser.setAuthProvider(AuthProvider.GOOGLE);
-
+                    newUser.setProfilePicture(pictureUrl); // ✅ Save picture for new users
                     return userRepository.save(newUser);
                 });
 
-                // ✅ Optional: Update provider for existing users if null (legacy data)
+                boolean userUpdated = false;
+
+                // ✅ Update AuthProvider if missing (for existing users)
                 if (user.getAuthProvider() == null) {
                     user.setAuthProvider(AuthProvider.GOOGLE);
+                    userUpdated = true;
+                }
+
+                // ✅ Update Profile Picture if missing or changed
+                if (pictureUrl != null && !pictureUrl.equals(user.getProfilePicture())) {
+                    user.setProfilePicture(pictureUrl);
+                    userUpdated = true;
+                }
+
+                if (userUpdated) {
                     userRepository.save(user);
                 }
 

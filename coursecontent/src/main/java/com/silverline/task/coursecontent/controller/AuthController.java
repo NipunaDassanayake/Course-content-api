@@ -3,7 +3,7 @@ package com.silverline.task.coursecontent.controller;
 import com.silverline.task.coursecontent.controller.dto.request.AuthRequest;
 import com.silverline.task.coursecontent.controller.dto.request.RegisterRequest;
 import com.silverline.task.coursecontent.controller.dto.response.AuthResponse;
-import com.silverline.task.coursecontent.model.AuthProvider; // ✅ Import AuthProvider
+import com.silverline.task.coursecontent.model.AuthProvider;
 import com.silverline.task.coursecontent.model.User;
 import com.silverline.task.coursecontent.repository.UserRepository;
 import com.silverline.task.coursecontent.security.JwtService;
@@ -40,12 +40,14 @@ public class AuthController {
         user.setPassword(passwordEncoder.encode(request.getPassword()));
         user.setRole("USER");
 
-        // ✅ Set AuthProvider to LOCAL for standard registration
+        // Set AuthProvider to LOCAL
         user.setAuthProvider(AuthProvider.LOCAL);
 
         userRepository.save(user);
         String token = jwtService.generateToken(user);
-        return ResponseEntity.ok(new AuthResponse(token, user.getEmail()));
+
+        // ✅ Pass null or user.getProfilePicture() (which is likely null for local registration)
+        return ResponseEntity.ok(new AuthResponse(token, user.getEmail(), user.getProfilePicture()));
     }
 
     @PostMapping("/login")
@@ -55,13 +57,20 @@ public class AuthController {
         );
         User user = userRepository.findByEmail(request.getEmail()).orElseThrow();
         String token = jwtService.generateToken(user);
-        return ResponseEntity.ok(new AuthResponse(token, user.getEmail()));
+
+        // ✅ Return stored profile picture
+        return ResponseEntity.ok(new AuthResponse(token, user.getEmail(), user.getProfilePicture()));
     }
 
     @PostMapping("/google")
     public ResponseEntity<AuthResponse> googleLogin(@RequestBody TokenRequest request) {
         String token = googleAuthService.authenticateGoogleUser(request.getToken());
-        return ResponseEntity.ok(new AuthResponse(token, "Google User"));
+
+        // ✅ Extract email from token to fetch the user and get their picture
+        String email = jwtService.extractUsername(token);
+        User user = userRepository.findByEmail(email).orElseThrow();
+
+        return ResponseEntity.ok(new AuthResponse(token, user.getEmail(), user.getProfilePicture()));
     }
 
     @Data
