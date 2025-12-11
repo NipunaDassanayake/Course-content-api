@@ -1,25 +1,34 @@
 import React, { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { fetchContents, downloadFile, getSummary, generateSummary } from "../api/contentApi";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  fetchContents,
+  downloadFile,
+  getSummary,
+  generateSummary,
+  toggleLike
+} from "../api/contentApi";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
 import ProfileModal from "../components/ProfileModal";
 import ChatModal from "../components/ChatModal";
+import CommentsModal from "../components/CommentsModal"; // ✅ Import CommentsModal
 import {
   FaFilePdf, FaFileAlt, FaRobot, FaDownload,
   FaEye, FaClock, FaFileVideo, FaFileImage,
-  FaShareAlt, FaComments
+  FaShareAlt, FaComments, FaHeart, FaRegHeart, FaComment
 } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 
 function Home() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const userEmail = localStorage.getItem("userEmail") || "Guest";
-  const [profileOpen, setProfileOpen] = useState(false);
 
-  // Dark mode
+  // State
+  const [profileOpen, setProfileOpen] = useState(false);
   const [darkMode, setDarkMode] = useState(document.documentElement.classList.contains("dark"));
 
+  // Toggle Dark Mode
   const toggleDarkMode = () => {
     setDarkMode(!darkMode);
     if (!darkMode) document.documentElement.classList.add("dark");
@@ -29,15 +38,25 @@ function Home() {
   const handleLogout = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("userEmail");
+    localStorage.removeItem("userAvatar");
     navigate("/");
   };
 
-  // Data Fetching
-  const { data: contents, isLoading, isError } = useQuery({
+  // --- DATA FETCHING ---
+  const { data: contents, isLoading, isError, refetch } = useQuery({
     queryKey: ["contents"],
     queryFn: async () => {
       const res = await fetchContents();
       return res.data;
+    },
+  });
+
+  // Like Mutation
+  const likeMutation = useMutation({
+    mutationFn: (id) => toggleLike(id),
+    onSuccess: () => {
+      // Refetch contents to update like counts/status instantly
+      queryClient.invalidateQueries(["contents"]);
     },
   });
 
@@ -51,11 +70,23 @@ function Home() {
   const [summaryData, setSummaryData] = useState(null);
   const [summaryLoading, setSummaryLoading] = useState(false);
 
-  // Chat State
   const [chatOpen, setChatOpen] = useState(false);
   const [chatFile, setChatFile] = useState({ id: null, name: "" });
 
+  // ✅ Comments State
+  const [commentsOpen, setCommentsOpen] = useState(false);
+  const [commentsContentId, setCommentsContentId] = useState(null);
+
   // --- HANDLERS ---
+
+  const handleLike = (id) => {
+    likeMutation.mutate(id);
+  };
+
+  const handleComments = (id) => {
+    setCommentsContentId(id);
+    setCommentsOpen(true);
+  };
 
   const handleChat = (item) => {
     setChatFile({ id: item.id, name: item.fileName });
@@ -118,7 +149,7 @@ function Home() {
     finally { setSummaryLoading(false); }
   };
 
-  // Content Preview Helper
+  // Helper to render content preview
   const renderContentPreview = (item) => {
     if (item.fileType?.startsWith("image/")) {
       return (
@@ -129,6 +160,7 @@ function Home() {
           <img
             src={item.fileUrl}
             alt={item.fileName}
+            referrerPolicy="no-referrer"
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
           />
           <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
@@ -180,10 +212,8 @@ function Home() {
           {!isLoading && contents?.map((item) => (
             <div key={item.id} className="bg-white dark:bg-slate-950 rounded-2xl p-6 shadow-sm border border-slate-200 dark:border-slate-800 hover:shadow-md transition-shadow">
 
-              {/* ✅ Header: User Profile Picture & Date */}
+              {/* Header: User & Date */}
               <div className="flex items-center gap-3 mb-4">
-
-                {/* Logic: Show Image if exists, else show Initial */}
                 {item.uploaderImage ? (
                   <img
                     src={item.uploaderImage}
@@ -196,7 +226,6 @@ function Home() {
                      {item.uploadedBy ? item.uploadedBy.charAt(0) : "?"}
                   </div>
                 )}
-
                 <div>
                   <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100">
                      {item.uploadedBy || "Anonymous User"}
@@ -216,44 +245,52 @@ function Home() {
                 </p>
               )}
 
-              {/* Preview */}
+              {/* Content Preview */}
               {renderContentPreview(item)}
 
               {/* Actions */}
               <div className="flex items-center justify-between border-t border-slate-100 dark:border-slate-800 pt-4">
 
-                 {/* Left Side: Preview, Chat & AI */}
-                 <div className="flex gap-2">
-                    {(!item.fileType?.startsWith("image") && !item.fileType?.startsWith("video")) && (
-                      <button onClick={() => handleView(item)} className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
-                          <FaEye /> Preview
-                      </button>
-                    )}
+                 {/* Left Side: Interactions & AI */}
+                 <div className="flex gap-4">
 
-                    <button onClick={() => handleChat(item)} className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-sky-600 hover:bg-sky-50 dark:hover:bg-sky-900/20 transition-colors">
-                        <FaComments /> Chat
+                    {/* Like Button */}
+                    <button
+                      onClick={() => handleLike(item.id)}
+                      className={`flex items-center gap-1.5 text-sm font-medium transition-colors ${item.likedByCurrentUser ? "text-red-500" : "text-slate-500 hover:text-red-500"}`}
+                    >
+                        {item.likedByCurrentUser ? <FaHeart /> : <FaRegHeart />}
+                        <span>{item.likeCount || 0}</span>
                     </button>
 
-                    <button onClick={() => handleSummary(item)} className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-colors">
-                        <FaRobot /> AI Summary
+                    {/* Comment Button */}
+                    <button
+                      onClick={() => handleComments(item.id)}
+                      className="flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-sky-600 transition-colors"
+                    >
+                        <FaComment />
+                        <span>{item.commentCount || 0}</span>
+                    </button>
+
+                    {/* Chat Button */}
+                    <button onClick={() => handleChat(item)} className="flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-purple-600 transition-colors">
+                        <FaComments />
+                        <span className="hidden sm:inline">Chat</span>
+                    </button>
+
+                    {/* AI Summary */}
+                    <button onClick={() => handleSummary(item)} className="flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-emerald-600 transition-colors">
+                        <FaRobot />
+                        <span className="hidden sm:inline">Summary</span>
                     </button>
                  </div>
 
                  {/* Right Side: Share & Download */}
                  <div className="flex gap-1">
-                    <button
-                      onClick={() => handleShare(item)}
-                      className="p-2 rounded-full text-slate-400 hover:text-sky-600 hover:bg-sky-50 dark:hover:bg-sky-900/20 transition-colors"
-                      title="Share"
-                    >
+                    <button onClick={() => handleShare(item)} className="p-2 rounded-full text-slate-400 hover:text-sky-600 hover:bg-sky-50 dark:hover:bg-sky-900/20 transition-colors" title="Share">
                       <FaShareAlt />
                     </button>
-
-                    <button
-                      onClick={() => handleDownload(item)}
-                      className="p-2 rounded-full text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-colors"
-                      title="Download"
-                    >
+                    <button onClick={() => handleDownload(item)} className="p-2 rounded-full text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-colors" title="Download">
                       <FaDownload />
                     </button>
                  </div>
@@ -265,11 +302,19 @@ function Home() {
 
       <Footer />
 
+      {/* --- ALL MODALS --- */}
+
       <ChatModal
         isOpen={chatOpen}
         onClose={() => setChatOpen(false)}
         fileId={chatFile.id}
         fileName={chatFile.name}
+      />
+
+      <CommentsModal
+        isOpen={commentsOpen}
+        onClose={() => setCommentsOpen(false)}
+        contentId={commentsContentId}
       />
 
       <ProfileModal isOpen={profileOpen} onClose={() => setProfileOpen(false)} userEmail={userEmail} />
