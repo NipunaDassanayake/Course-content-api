@@ -21,6 +21,13 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+
+// ✅ Notification APIs
+export const getNotifications = () => api.get("/notifications");
+export const getUnreadCount = () => api.get("/notifications/count");
+export const markNotificationRead = (id) => api.put(`/notifications/${id}/read`);
+export const markAllNotificationsRead = () => api.put("/notifications/read-all");
+
 // Interaction Endpoints
 export const toggleLike = (id) => api.post(`/interactions/${id}/like`);
 export const getComments = (id) => api.get(`/interactions/${id}/comments`);
