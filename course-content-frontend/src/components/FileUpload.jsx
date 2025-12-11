@@ -1,9 +1,10 @@
 import React, { useState, useRef } from "react";
-import { FaCloudUploadAlt, FaFilePdf, FaFileImage, FaFileVideo, FaFileAlt, FaTimes, FaCheckCircle, FaLink, FaYoutube } from "react-icons/fa";
-import { uploadFile, addContentLink } from "../api/contentApi"; // ✅ Import API functions directly
+import { FaCloudUploadAlt, FaFilePdf, FaFileImage, FaFileVideo, FaFileAlt, FaTimes, FaLink, FaYoutube } from "react-icons/fa";
+import { uploadFile, addContentLink } from "../api/contentApi";
+import toast from "react-hot-toast"; // ✅ Import toast
 
-function FileUpload({ onUploadSuccess }) { // ✅ Renamed prop to onUploadSuccess (to refresh dashboard)
-  const [activeTab, setActiveTab] = useState("file"); // 'file' or 'link'
+function FileUpload({ onUploadSuccess }) {
+  const [activeTab, setActiveTab] = useState("file");
 
   // File State
   const [file, setFile] = useState(null);
@@ -16,8 +17,8 @@ function FileUpload({ onUploadSuccess }) { // ✅ Renamed prop to onUploadSucces
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [dragActive, setDragActive] = useState(false);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState(false);
+
+  // ✅ Removed local error/success state in favor of toasts
 
   const inputRef = useRef(null);
 
@@ -49,10 +50,8 @@ function FileUpload({ onUploadSuccess }) { // ✅ Renamed prop to onUploadSucces
   };
 
   const validateAndSetFile = (selectedFile) => {
-    setError("");
-    setSuccess(false);
     if (selectedFile.size > 100 * 1024 * 1024) {
-      setError("File is too large (Max 100MB)");
+      toast.error("File is too large (Max 100MB)"); // ✅ Toast Error
       return;
     }
     setFile(selectedFile);
@@ -67,16 +66,16 @@ function FileUpload({ onUploadSuccess }) { // ✅ Renamed prop to onUploadSucces
   // --- SUBMIT LOGIC ---
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError("");
-    setSuccess(false);
     setUploading(true);
     setProgress(0);
 
+    // ✅ Start Loading Toast
+    const toastId = toast.loading("Processing...");
+
     try {
       if (activeTab === "file") {
-        // 1. Handle File Upload
         if (!file) {
-            setError("Please select a file.");
+            toast.error("Please select a file.", { id: toastId });
             setUploading(false);
             return;
         }
@@ -88,15 +87,13 @@ function FileUpload({ onUploadSuccess }) { // ✅ Renamed prop to onUploadSucces
         });
 
       } else {
-        // 2. Handle Link Submission
         if (!url) {
-            setError("Please enter a valid URL.");
+            toast.error("Please enter a valid URL.", { id: toastId });
             setUploading(false);
             return;
         }
-        // Basic URL validation
         if (!url.startsWith("http")) {
-            setError("URL must start with http:// or https://");
+            toast.error("URL must start with http:// or https://", { id: toastId });
             setUploading(false);
             return;
         }
@@ -105,26 +102,22 @@ function FileUpload({ onUploadSuccess }) { // ✅ Renamed prop to onUploadSucces
         setProgress(100);
       }
 
-      // Success Handling
-      setSuccess(true);
+      // ✅ Success Toast
+      toast.success(activeTab === 'file' ? "File uploaded!" : "Link added!", { id: toastId });
+
       setFile(null);
       setUrl("");
       setDescription("");
       if (inputRef.current) inputRef.current.value = "";
 
-      // Trigger parent refresh
       if (onUploadSuccess) onUploadSuccess();
-
-      setTimeout(() => {
-        setSuccess(false);
-        setProgress(0);
-      }, 3000);
 
     } catch (err) {
       console.error(err);
-      setError("Upload failed. Please try again.");
+      toast.error("Upload failed. Please try again.", { id: toastId });
     } finally {
       setUploading(false);
+      setTimeout(() => setProgress(0), 1000);
     }
   };
 
@@ -135,14 +128,14 @@ function FileUpload({ onUploadSuccess }) { // ✅ Renamed prop to onUploadSucces
       <div className="flex gap-6 mb-6 border-b border-slate-100 dark:border-slate-800 pb-1">
         <button
           type="button"
-          onClick={() => { setActiveTab("file"); setError(""); setSuccess(false); }}
+          onClick={() => { setActiveTab("file"); }}
           className={`flex items-center gap-2 pb-3 text-sm font-bold transition-all ${activeTab === 'file' ? 'text-sky-600 border-b-2 border-sky-600' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}
         >
           <FaCloudUploadAlt className="text-lg" /> Upload File
         </button>
         <button
           type="button"
-          onClick={() => { setActiveTab("link"); setError(""); setSuccess(false); }}
+          onClick={() => { setActiveTab("link"); }}
           className={`flex items-center gap-2 pb-3 text-sm font-bold transition-all ${activeTab === 'link' ? 'text-sky-600 border-b-2 border-sky-600' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}
         >
           <FaLink className="text-lg" /> Add Link
@@ -221,10 +214,6 @@ function FileUpload({ onUploadSuccess }) { // ✅ Renamed prop to onUploadSucces
                 disabled={uploading}
             />
         </div>
-
-        {/* Status Messages */}
-        {error && <div className="mt-3 text-xs text-red-600 bg-red-50 dark:bg-red-900/20 p-2 rounded-lg text-center">{error}</div>}
-        {success && <div className="mt-3 text-xs text-emerald-600 bg-emerald-50 dark:bg-emerald-900/20 p-2 rounded-lg flex items-center justify-center gap-2"><FaCheckCircle /> {activeTab === 'file' ? 'Uploaded!' : 'Link Added!'}</div>}
 
         {/* Submit Button */}
         <button

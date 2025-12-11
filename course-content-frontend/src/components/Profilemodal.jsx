@@ -1,45 +1,42 @@
 import React, { useState, useRef } from "react";
-import { FaLock, FaTimes, FaSave, FaUserCircle, FaCamera } from "react-icons/fa";
-import { changePassword, updateProfilePicture } from "../api/contentApi"; // ✅ Import API
+import { FaTimes, FaSave, FaUserCircle, FaCamera } from "react-icons/fa";
+import { changePassword, updateProfilePicture } from "../api/contentApi";
+import toast from "react-hot-toast"; // ✅ Import Toast
 
 function ProfileModal({ isOpen, onClose, userEmail }) {
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [message, setMessage] = useState({ text: "", type: "" });
   const [loading, setLoading] = useState(false);
 
-  // ✅ Image Upload State
   const [uploadingImg, setUploadingImg] = useState(false);
   const fileInputRef = useRef(null);
-  const [userAvatar, setUserAvatar] = useState(localStorage.getItem("userAvatar")); // Local state for immediate UI update
+  const [userAvatar, setUserAvatar] = useState(localStorage.getItem("userAvatar"));
 
   if (!isOpen) return null;
 
-  // ✅ Handle File Selection & Upload
   const handleImageChange = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
     setUploadingImg(true);
+    const toastId = toast.loading("Updating profile picture..."); // ✅ Toast Loading
+
     const formData = new FormData();
     formData.append("file", file);
 
     try {
         const res = await updateProfilePicture(formData);
-        const newUrl = res.data; // The backend returns the new URL string directly
+        const newUrl = res.data;
 
-        // Update Local Storage & State
         localStorage.setItem("userAvatar", newUrl);
         setUserAvatar(newUrl);
 
-        setMessage({ text: "Profile picture updated!", type: "success" });
-
-        // Reload page to update Header (optional, or use context)
+        toast.success("Profile picture updated!", { id: toastId }); // ✅ Toast Success
         setTimeout(() => window.location.reload(), 1000);
 
     } catch (err) {
-        setMessage({ text: "Failed to upload image.", type: "error" });
+        toast.error("Failed to upload image.", { id: toastId }); // ✅ Toast Error
     } finally {
         setUploadingImg(false);
     }
@@ -47,28 +44,28 @@ function ProfileModal({ isOpen, onClose, userEmail }) {
 
   const handlePasswordSubmit = async (e) => {
     e.preventDefault();
-    setMessage({ text: "", type: "" });
 
     if (newPassword !== confirmPassword) {
-      setMessage({ text: "New passwords do not match!", type: "error" });
+      toast.error("New passwords do not match!"); // ✅ Toast Error
       return;
     }
     if (newPassword.length < 6) {
-        setMessage({ text: "Password must be at least 6 characters.", type: "error" });
+        toast.error("Password must be at least 6 characters."); // ✅ Toast Error
         return;
     }
 
     setLoading(true);
+    const toastId = toast.loading("Updating password...");
+
     try {
       await changePassword({ currentPassword, newPassword });
-      setMessage({ text: "Password updated successfully!", type: "success" });
+      toast.success("Password updated successfully!", { id: toastId }); // ✅ Toast Success
       setTimeout(() => {
         onClose();
         setCurrentPassword(""); setNewPassword(""); setConfirmPassword("");
-        setMessage({ text: "", type: "" });
-      }, 1500);
+      }, 1000);
     } catch (err) {
-      setMessage({ text: "Failed to update password", type: "error" });
+      toast.error("Failed to update password. Check current password.", { id: toastId }); // ✅ Toast Error
     } finally {
       setLoading(false);
     }
@@ -78,7 +75,6 @@ function ProfileModal({ isOpen, onClose, userEmail }) {
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
       <div className="bg-white dark:bg-slate-950 w-full max-w-md rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden animate-in fade-in zoom-in duration-200">
 
-        {/* Header */}
         <div className="bg-slate-50 dark:bg-slate-900/50 px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
           <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
             Settings
@@ -89,24 +85,15 @@ function ProfileModal({ isOpen, onClose, userEmail }) {
         </div>
 
         <div className="p-6">
-
-          {/* ✅ Profile Picture Upload Section */}
           <div className="flex flex-col items-center mb-6">
             <div className="relative group cursor-pointer" onClick={() => fileInputRef.current.click()}>
               {userAvatar ? (
-                 <img
-                   src={userAvatar}
-                   referrerPolicy="no-referrer"
-                   className="w-24 h-24 rounded-full border-4 border-slate-100 dark:border-slate-800 object-cover shadow-sm"
-                   alt="Profile"
-                 />
+                 <img src={userAvatar} referrerPolicy="no-referrer" className="w-24 h-24 rounded-full border-4 border-slate-100 dark:border-slate-800 object-cover shadow-sm" alt="Profile" />
               ) : (
                  <div className="w-24 h-24 rounded-full bg-slate-200 dark:bg-slate-800 flex items-center justify-center text-4xl text-slate-400">
                     <FaUserCircle />
                  </div>
               )}
-
-              {/* Overlay with Camera Icon */}
               <div className="absolute inset-0 bg-black/30 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                  {uploadingImg ? (
                     <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
@@ -115,73 +102,29 @@ function ProfileModal({ isOpen, onClose, userEmail }) {
                  )}
               </div>
             </div>
-
-            {/* Hidden File Input */}
-            <input
-                type="file"
-                ref={fileInputRef}
-                className="hidden"
-                accept="image/*"
-                onChange={handleImageChange}
-            />
-
+            <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleImageChange}/>
             <p className="mt-3 font-semibold text-slate-700 dark:text-slate-200">{userEmail}</p>
             <p className="text-xs text-slate-500">Click image to update</p>
           </div>
 
           <hr className="mb-6 border-slate-100 dark:border-slate-800" />
 
-          {/* Message Alert */}
-          {message.text && (
-            <div className={`text-sm p-3 rounded-lg mb-4 text-center border ${message.type === 'success' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-red-50 text-red-600 border-red-100'}`}>
-              {message.text}
-            </div>
-          )}
+          {/* ✅ Removed old message div, using toast instead */}
 
-          {/* Password Form */}
           <form onSubmit={handlePasswordSubmit} className="space-y-4">
             <div>
               <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Current Password</label>
-              <input
-                type="password"
-                required
-                className="w-full p-2.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-sky-500 outline-none transition-all"
-                value={currentPassword}
-                onChange={(e) => setCurrentPassword(e.target.value)}
-              />
+              <input type="password" required className="w-full p-2.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-sky-500 outline-none transition-all" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} />
             </div>
-
             <div>
               <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">New Password</label>
-              <input
-                type="password"
-                required
-                className="w-full p-2.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-sky-500 outline-none transition-all"
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-              />
+              <input type="password" required className="w-full p-2.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-sky-500 outline-none transition-all" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} />
             </div>
-
             <div>
               <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Confirm New Password</label>
-              <input
-                type="password"
-                required
-                className={`w-full p-2.5 rounded-lg border bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 outline-none transition-all
-                  ${confirmPassword && newPassword !== confirmPassword
-                    ? "border-red-300 focus:ring-red-500"
-                    : "border-slate-300 dark:border-slate-700 focus:ring-sky-500"
-                  }`}
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-              />
+              <input type="password" required className={`w-full p-2.5 rounded-lg border bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 outline-none transition-all ${confirmPassword && newPassword !== confirmPassword ? "border-red-300 focus:ring-red-500" : "border-slate-300 dark:border-slate-700 focus:ring-sky-500"}`} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} />
             </div>
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-sky-600 hover:bg-sky-700 text-white py-2.5 rounded-lg font-semibold shadow-lg shadow-sky-500/20 flex items-center justify-center gap-2 transition-all disabled:opacity-70 mt-2"
-            >
+            <button type="submit" disabled={loading} className="w-full bg-sky-600 hover:bg-sky-700 text-white py-2.5 rounded-lg font-semibold shadow-lg shadow-sky-500/20 flex items-center justify-center gap-2 transition-all disabled:opacity-70 mt-2">
               {loading ? "Updating..." : <><FaSave /> Update Password</>}
             </button>
           </form>

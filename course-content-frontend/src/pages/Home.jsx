@@ -12,14 +12,15 @@ import Footer from "../components/Footer";
 import ProfileModal from "../components/ProfileModal";
 import ChatModal from "../components/ChatModal";
 import CommentsModal from "../components/CommentsModal";
+import toast from "react-hot-toast"; // ✅ Import Toast
 import {
   FaFilePdf, FaFileAlt, FaRobot, FaDownload,
   FaEye, FaClock, FaFileVideo, FaFileImage,
-  FaShareAlt, FaComments, FaHeart, FaRegHeart, FaComment, FaLink // ✅ Added FaLink
+  FaShareAlt, FaComments, FaHeart, FaRegHeart, FaComment, FaLink
 } from "react-icons/fa";
 import { useNavigate, useSearchParams } from "react-router-dom";
 
-// ✅ Helper to extract YouTube ID
+// Helper to extract YouTube ID
 const getYoutubeId = (url) => {
   const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
   const match = url.match(regExp);
@@ -113,9 +114,10 @@ function Home() {
   const handleDownload = async (item) => {
     // Cannot download external links
     if(item.fileType === "resource/link" || item.fileType === "video/youtube") {
-        alert("Cannot download external links.");
+        toast.error("Cannot download external links."); // ✅ Toast Error
         return;
     }
+    const toastId = toast.loading("Downloading...");
     try {
         const res = await downloadFile(item.id);
         const url = window.URL.createObjectURL(new Blob([res.data]));
@@ -125,7 +127,8 @@ function Home() {
         document.body.appendChild(link);
         link.click();
         link.remove();
-    } catch(e) { alert("Download failed"); }
+        toast.success("Download complete!", { id: toastId }); // ✅ Toast Success
+    } catch(e) { toast.error("Download failed", { id: toastId }); } // ✅ Toast Error
   };
 
   const handleShare = async (item) => {
@@ -137,13 +140,16 @@ function Home() {
     if (navigator.share) {
       try { await navigator.share(shareData); } catch (err) { console.error("Error sharing:", err); }
     } else {
-      try { await navigator.clipboard.writeText(item.fileUrl); alert("Link copied to clipboard! 📋"); } catch (err) { alert("Failed to copy link."); }
+      try {
+          await navigator.clipboard.writeText(item.fileUrl);
+          toast.success("Link copied to clipboard! 📋"); // ✅ Toast Success
+      } catch (err) { toast.error("Failed to copy link."); } // ✅ Toast Error
     }
   };
 
   const handleSummary = async (item) => {
     if(item.fileType === "resource/link" || item.fileType === "video/youtube") {
-        alert("AI Summary not supported for external links yet.");
+        toast.error("AI Summary not supported for external links yet."); // ✅ Toast Error
         return;
     }
     setSummaryOpen(true);
@@ -153,11 +159,15 @@ function Home() {
         let res = await getSummary(item.id);
         if (!res.data.summary) res = await generateSummary(item.id);
         setSummaryData(res.data);
-    } catch(e) { alert("Summary failed"); setSummaryOpen(false); }
+        toast.success("Summary generated!"); // ✅ Toast Success
+    } catch(e) {
+        toast.error("Summary failed"); // ✅ Toast Error
+        setSummaryOpen(false);
+    }
     finally { setSummaryLoading(false); }
   };
 
-  // ✅ Updated Content Preview Renderer
+  // Content Preview Renderer
   const renderContentPreview = (item) => {
 
     // 1. YouTube Video (Embedded Player)

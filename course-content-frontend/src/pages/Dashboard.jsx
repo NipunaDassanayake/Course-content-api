@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import toast from "react-hot-toast"; // ✅ Import Toast
 
 // Components
 import FileUpload from "../components/FileUpload.jsx";
@@ -89,9 +90,8 @@ function Dashboard() {
 
   // --- HANDLERS ---
 
-  // ✅ NOTE: 'handleUpload' removed. The FileUpload component now handles the API call internally.
-
   const handleDownload = async (item) => {
+    const toastId = toast.loading("Downloading..."); // ✅ Toast Loading
     try {
       const res = await downloadFile(item.id);
       const contentType = res.headers["content-type"] || item.fileType || "application/octet-stream";
@@ -104,21 +104,24 @@ function Dashboard() {
       link.click();
       link.remove();
       window.URL.revokeObjectURL(url);
+      toast.success("Download started!", { id: toastId }); // ✅ Toast Success
     } catch (err) {
       console.error(err);
-      alert("Download failed");
+      toast.error("Download failed", { id: toastId }); // ✅ Toast Error
     }
   };
 
   const handleDelete = async (id) => {
     if (!window.confirm("Are you sure you want to delete this file?")) return;
+    const toastId = toast.loading("Deleting content..."); // ✅ Toast Loading
     try {
       await deleteContent(id);
       // ✅ Invalidate 'my-contents' to remove the deleted item from the list
       await queryClient.invalidateQueries({ queryKey: ["my-contents"] });
+      toast.success("Content deleted successfully!", { id: toastId }); // ✅ Toast Success
     } catch (err) {
       console.error(err);
-      alert("Failed to delete file");
+      toast.error("Failed to delete file. You may not be the owner.", { id: toastId }); // ✅ Toast Error
     }
   };
 
@@ -142,7 +145,7 @@ function Dashboard() {
       setPreviewOpen(true);
     } catch (err) {
       console.error(err);
-      alert("Failed to open file");
+      toast.error("Failed to open file"); // ✅ Toast Error
     }
   };
 
@@ -165,10 +168,11 @@ function Dashboard() {
           summary: res.data.summary,
           keyPoints: res.data.keyPoints,
         });
+        toast.success("Summary generated!"); // ✅ Toast Success
       }
     } catch (err) {
       console.error(err);
-      alert("Failed to load AI summary");
+      toast.error("Failed to load AI summary"); // ✅ Toast Error
       setSummaryModalOpen(false);
     } finally {
       setSummaryLoading(false);
