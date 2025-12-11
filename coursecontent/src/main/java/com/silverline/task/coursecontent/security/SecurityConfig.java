@@ -3,6 +3,7 @@ package com.silverline.task.coursecontent.security;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -21,7 +22,7 @@ import java.util.List;
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthFilter;
-    private final AuthenticationProvider authenticationProvider; // Injected from ApplicationConfig
+    private final AuthenticationProvider authenticationProvider;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -29,9 +30,24 @@ public class SecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/auth/**").permitAll() // Allow Login/Register
-                        .requestMatchers("/api/content/*/download").permitAll() // Optional: allow public download
-                        .anyRequest().authenticated() // Block everything else
+                        // 🟢 1. SPECIFIC AUTHENTICATED ENDPOINTS (Must come FIRST)
+                        // This ensures "My Contents" requires a token/login
+                        .requestMatchers("/api/content/my-contents").authenticated()
+
+                        // 🟢 2. PUBLIC ENDPOINTS
+                        .requestMatchers("/api/auth/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/content/**").permitAll() // Public Feed & Download
+                        .requestMatchers(HttpMethod.GET, "/api/interactions/**").permitAll() // View Comments
+
+                        // 🟢 3. GENERAL PROTECTED ENDPOINTS
+                        .requestMatchers(HttpMethod.POST, "/api/content/**").authenticated() // Upload
+                        .requestMatchers(HttpMethod.DELETE, "/api/content/**").authenticated() // Delete
+                        .requestMatchers("/api/interactions/**").authenticated()
+                        .requestMatchers("/api/notifications/**").authenticated()
+                        .requestMatchers("/api/users/**").authenticated()
+
+                        // Block everything else
+                        .anyRequest().authenticated()
                 )
                 .sessionManagement(sess -> sess.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authenticationProvider(authenticationProvider)
@@ -43,7 +59,7 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOrigins(List.of("http://localhost:5173")); // Allow Frontend
+        config.setAllowedOrigins(List.of("http://localhost:5173"));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("Authorization", "Content-Type"));
         config.setAllowCredentials(true);

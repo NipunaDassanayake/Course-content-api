@@ -3,10 +3,10 @@ package com.silverline.task.coursecontent.controller;
 import com.silverline.task.coursecontent.controller.dto.response.CourseContentResponseDTO;
 import com.silverline.task.coursecontent.controller.dto.response.SummaryResponseDTO;
 import com.silverline.task.coursecontent.controller.dto.response.UploadResponseDTO;
-import com.silverline.task.coursecontent.model.CourseContent;
 import com.silverline.task.coursecontent.service.CourseContentService;
-import jakarta.servlet.http.HttpServletRequest;
-import org.springframework.http.*;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -15,28 +15,21 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/content")
-@CrossOrigin(origins = "http://localhost:5173") // React dev
+@RequiredArgsConstructor
+@CrossOrigin(origins = "http://localhost:5173")
 public class CourseContentController {
 
     private final CourseContentService courseContentService;
 
-    public CourseContentController(CourseContentService courseContentService) {
-        this.courseContentService = courseContentService;
-    }
-
-    @PostMapping
-    public ResponseEntity<UploadResponseDTO> uploadFile(
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<UploadResponseDTO> uploadContent(
             @RequestParam("file") MultipartFile file,
-            @RequestParam(value = "description", required = false) String description, // ✅ Accept Description
-            HttpServletRequest request,
-            java.security.Principal principal
-    ) {
-        String baseUrl = request.getScheme() + "://" + request.getServerName() + ":" + request.getServerPort();
+            @RequestParam("description") String description,
+            Principal principal) {
 
-        // Pass description to service
-        UploadResponseDTO dto = courseContentService.uploadFile(file, description, baseUrl, principal.getName());
-
-        return new ResponseEntity<>(dto, HttpStatus.CREATED);
+        // Construct the base URL for downloads
+        String baseDownloadUrl = "http://localhost:8080";
+        return ResponseEntity.ok(courseContentService.uploadFile(file, description, baseDownloadUrl, principal.getName()));
     }
 
     @GetMapping
@@ -44,55 +37,40 @@ public class CourseContentController {
         return ResponseEntity.ok(courseContentService.getAllContents());
     }
 
-    @GetMapping("/{id}")
-    public ResponseEntity<CourseContentResponseDTO> getContent(@PathVariable Long id) {
-        return ResponseEntity.ok(courseContentService.getContent(id));
-    }
-
     @GetMapping("/{id}/download")
-    public ResponseEntity<byte[]> downloadFile(@PathVariable Long id) {
-        CourseContent content = courseContentService.getById(id);
-        byte[] data = courseContentService.getFileData(id); // this reads from S3
+    public ResponseEntity<byte[]> downloadContent(@PathVariable Long id) {
+        byte[] data = courseContentService.getFileData(id);
+        var content = courseContentService.getContent(id);
 
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.parseMediaType(content.getFileType()));
-        headers.setContentDisposition(
-                ContentDisposition.attachment()
-                        .filename(content.getFileName())
-                        .build()
-        );
-
-        return new ResponseEntity<>(data, headers, HttpStatus.OK);
+        return ResponseEntity.ok()
+                .header("Content-Disposition", "attachment; filename=\"" + content.getFileName() + "\"")
+                .body(data);
     }
 
-    //UPDATED: Delete with ownership check
+    // ✅ FIX: Update Delete to accept Principal (User Identity)
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteContent(
-            @PathVariable Long id,
-            java.security.Principal principal // Get logged in user
-    ) {
+    public ResponseEntity<Void> deleteContent(@PathVariable Long id, Principal principal) {
+        // Pass the ID AND the User's Email to the service for verification
         courseContentService.deleteContent(id, principal.getName());
         return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/{id}/summary")
     public ResponseEntity<SummaryResponseDTO> generateSummary(@PathVariable Long id) {
-        SummaryResponseDTO response = courseContentService.generateAndSaveSummary(id);
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(courseContentService.generateAndSaveSummary(id));
     }
 
     @GetMapping("/{id}/summary")
     public ResponseEntity<SummaryResponseDTO> getSummary(@PathVariable Long id) {
-        CourseContent content = courseContentService.getById(id);
-
-        return ResponseEntity.ok(
-                new SummaryResponseDTO(content.getId(), content.getSummary(), content.getKeyPoints())
-        );
+        var content = courseContentService.getById(id);
+        if (content.getSummary() == null) {
+            return ResponseEntity.ok(new SummaryResponseDTO(id, null, null));
+        }
+        return ResponseEntity.ok(new SummaryResponseDTO(id, content.getSummary(), content.getKeyPoints()));
     }
 
-    //  ✅ NEW: Endpoint for DASHBOARD (My Files Only)
-    @GetMapping("/my")
-    public ResponseEntity<List<CourseContentResponseDTO>> getMyContents(java.security.Principal principal) {
+    @GetMapping("/my-contents")
+    public ResponseEntity<List<CourseContentResponseDTO>> getMyContents(Principal principal) {
         return ResponseEntity.ok(courseContentService.getMyContents(principal.getName()));
     }
 }
