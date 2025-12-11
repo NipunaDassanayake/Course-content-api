@@ -10,6 +10,8 @@ import java.util.List;
 
 public interface CourseContentService {
 
+    List<CourseContentResponseDTO> getMyContents(String userEmail); // ✅ New
+    void deleteContent(Long id, String userEmail);
     List<CourseContentResponseDTO> getAllContents();
     CourseContentResponseDTO getContent(Long id);
     byte[] getFileData(Long id);

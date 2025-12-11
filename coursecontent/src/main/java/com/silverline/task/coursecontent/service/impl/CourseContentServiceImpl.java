@@ -194,4 +194,41 @@ public class CourseContentServiceImpl implements CourseContentService {
         return repository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Content not found: " + id));
     }
+
+    @Override
+    public List<CourseContentResponseDTO> getMyContents(String userEmail) {
+        log.debug("Fetching contents for user: {}", userEmail);
+        // ✅ Use the new repository method
+        return repository.findAllByUserEmail(userEmail)
+                .stream()
+                .map(this::toDto)
+                .toList();
+    }
+
+    @Override
+    public void deleteContent(Long id, String userEmail) {
+        CourseContent content = repository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Content not found with id: " + id));
+
+        // ✅ SECURITY CHECK: Ensure the logged-in user owns this file
+        if (!content.getUser().getEmail().equals(userEmail)) {
+            log.warn("User {} tried to delete content {} owned by {}", userEmail, id, content.getUser().getEmail());
+            throw new RuntimeException("Unauthorized: You do not own this content"); // Or throw AccessDeniedException
+        }
+
+        // Proceed with deletion logic...
+        String storedRef = content.getFileUrl();
+        try {
+            if (storedRef != null && !storedRef.isBlank()) {
+                fileStorageService.deleteFile(storedRef);
+            }
+        } catch (Exception ex) {
+            log.error("Failed to delete file from S3.", ex);
+        }
+
+        repository.delete(content);
+        log.info("Deleted CourseContent entity with id={}", id);
+    }
+
+
 }
