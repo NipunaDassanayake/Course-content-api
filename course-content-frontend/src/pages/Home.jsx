@@ -15,21 +15,27 @@ import CommentsModal from "../components/CommentsModal";
 import {
   FaFilePdf, FaFileAlt, FaRobot, FaDownload,
   FaEye, FaClock, FaFileVideo, FaFileImage,
-  FaShareAlt, FaComments, FaHeart, FaRegHeart, FaComment
+  FaShareAlt, FaComments, FaHeart, FaRegHeart, FaComment, FaLink // ✅ Added FaLink
 } from "react-icons/fa";
-import { useNavigate, useSearchParams } from "react-router-dom"; // ✅ Import useSearchParams
+import { useNavigate, useSearchParams } from "react-router-dom";
+
+// ✅ Helper to extract YouTube ID
+const getYoutubeId = (url) => {
+  const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
+  const match = url.match(regExp);
+  return (match && match[2].length === 11) ? match[2] : null;
+};
 
 function Home() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const [searchParams, setSearchParams] = useSearchParams(); // ✅ Initialize Params
+  const [searchParams, setSearchParams] = useSearchParams();
   const userEmail = localStorage.getItem("userEmail") || "Guest";
 
   // State
   const [profileOpen, setProfileOpen] = useState(false);
   const [darkMode, setDarkMode] = useState(document.documentElement.classList.contains("dark"));
 
-  // Toggle Dark Mode
   const toggleDarkMode = () => {
     setDarkMode(!darkMode);
     if (!darkMode) document.documentElement.classList.add("dark");
@@ -76,40 +82,27 @@ function Home() {
   const [commentsOpen, setCommentsOpen] = useState(false);
   const [commentsContentId, setCommentsContentId] = useState(null);
 
-  // ✅ EFFECT: Open Comments from Notification Link
+  // Effect: Open Comments from Notification Link
   useEffect(() => {
     const contentIdToOpen = searchParams.get("openComments");
-
     if (contentIdToOpen) {
-      setCommentsContentId(Number(contentIdToOpen)); // Set Content ID
-      setCommentsOpen(true); // Open Modal
-
-      // Clean URL so it doesn't reopen on refresh
+      setCommentsContentId(Number(contentIdToOpen));
+      setCommentsOpen(true);
       setSearchParams({});
     }
   }, [searchParams, setSearchParams]);
 
   // --- HANDLERS ---
-
-  const handleLike = (id) => {
-    likeMutation.mutate(id);
-  };
-
-  const handleComments = (id) => {
-    setCommentsContentId(id);
-    setCommentsOpen(true);
-  };
-
-  const handleCommentAdded = () => {
-    queryClient.invalidateQueries(["contents"]);
-  };
-
-  const handleChat = (item) => {
-    setChatFile({ id: item.id, name: item.fileName });
-    setChatOpen(true);
-  };
+  const handleLike = (id) => likeMutation.mutate(id);
+  const handleComments = (id) => { setCommentsContentId(id); setCommentsOpen(true); };
+  const handleCommentAdded = () => queryClient.invalidateQueries(["contents"]);
+  const handleChat = (item) => { setChatFile({ id: item.id, name: item.fileName }); setChatOpen(true); };
 
   const handleView = (item) => {
+    if (item.fileType === "video/youtube" || item.fileType === "resource/link") {
+        window.open(item.fileUrl, "_blank"); // Open links in new tab
+        return;
+    }
     const type = item.fileType.includes("pdf") ? "pdf" : item.fileType.includes("image") ? "image" : item.fileType.includes("video") ? "video" : "other";
     setPreviewUrl(item.fileUrl);
     setPreviewType(type);
@@ -118,6 +111,11 @@ function Home() {
   };
 
   const handleDownload = async (item) => {
+    // Cannot download external links
+    if(item.fileType === "resource/link" || item.fileType === "video/youtube") {
+        alert("Cannot download external links.");
+        return;
+    }
     try {
         const res = await downloadFile(item.id);
         const url = window.URL.createObjectURL(new Blob([res.data]));
@@ -133,27 +131,21 @@ function Home() {
   const handleShare = async (item) => {
     const shareData = {
       title: item.fileName,
-      text: item.description || `Check out this file: ${item.fileName}`,
+      text: item.description || `Check out this content: ${item.fileName}`,
       url: item.fileUrl,
     };
-
     if (navigator.share) {
-      try {
-        await navigator.share(shareData);
-      } catch (err) {
-        console.error("Error sharing:", err);
-      }
+      try { await navigator.share(shareData); } catch (err) { console.error("Error sharing:", err); }
     } else {
-      try {
-        await navigator.clipboard.writeText(item.fileUrl);
-        alert("Link copied to clipboard! 📋");
-      } catch (err) {
-        alert("Failed to copy link.");
-      }
+      try { await navigator.clipboard.writeText(item.fileUrl); alert("Link copied to clipboard! 📋"); } catch (err) { alert("Failed to copy link."); }
     }
   };
 
   const handleSummary = async (item) => {
+    if(item.fileType === "resource/link" || item.fileType === "video/youtube") {
+        alert("AI Summary not supported for external links yet.");
+        return;
+    }
     setSummaryOpen(true);
     setSummaryLoading(true);
     setSummaryData(null);
@@ -165,8 +157,45 @@ function Home() {
     finally { setSummaryLoading(false); }
   };
 
-  // Helper to render content preview
+  // ✅ Updated Content Preview Renderer
   const renderContentPreview = (item) => {
+
+    // 1. YouTube Video (Embedded Player)
+    if (item.fileType === "video/youtube") {
+        const videoId = getYoutubeId(item.fileUrl);
+        return (
+            <div className="w-full aspect-video bg-black rounded-xl overflow-hidden mb-4 border border-slate-200 dark:border-slate-800">
+                <iframe
+                    width="100%"
+                    height="100%"
+                    src={`https://www.youtube.com/embed/${videoId}`}
+                    title={item.fileName}
+                    frameBorder="0"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                ></iframe>
+            </div>
+        );
+    }
+
+    // 2. Generic Link Card
+    if (item.fileType === "resource/link") {
+        return (
+            <a href={item.fileUrl} target="_blank" rel="noopener noreferrer" className="block mb-4 group">
+                <div className="flex items-center gap-4 bg-sky-50 dark:bg-sky-900/20 p-4 rounded-xl border border-sky-100 dark:border-slate-800 group-hover:bg-sky-100 dark:group-hover:bg-sky-900/30 transition-colors">
+                    <div className="bg-sky-500 text-white p-3 rounded-full shrink-0">
+                        <FaLink className="text-xl"/>
+                    </div>
+                    <div className="overflow-hidden">
+                        <h4 className="font-bold text-sky-700 dark:text-sky-400 truncate text-sm">{item.fileName}</h4>
+                        <p className="text-xs text-sky-600/70 dark:text-sky-500 truncate">{item.fileUrl}</p>
+                    </div>
+                </div>
+            </a>
+        );
+    }
+
+    // 3. Image
     if (item.fileType?.startsWith("image/")) {
       return (
         <div
@@ -185,6 +214,8 @@ function Home() {
         </div>
       );
     }
+
+    // 4. Native Video Upload
     if (item.fileType?.startsWith("video/")) {
       return (
         <div className="w-full bg-black rounded-xl overflow-hidden mb-4 border border-slate-200 dark:border-slate-800 relative group">
@@ -192,6 +223,8 @@ function Home() {
         </div>
       );
     }
+
+    // 5. Default File (PDF/Doc)
     return (
       <div className="flex gap-4 items-start bg-slate-50 dark:bg-slate-900/50 p-4 rounded-xl border border-slate-100 dark:border-slate-800 mb-4 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-900 transition-colors" onClick={() => handleView(item)}>
         <div className="shrink-0">
@@ -228,7 +261,7 @@ function Home() {
           {!isLoading && contents?.map((item) => (
             <div key={item.id} className="bg-white dark:bg-slate-950 rounded-2xl p-6 shadow-sm border border-slate-200 dark:border-slate-800 hover:shadow-md transition-shadow">
 
-              {/* Header: User & Date */}
+              {/* Header */}
               <div className="flex items-center gap-3 mb-4">
                 {item.uploaderImage ? (
                   <img
@@ -249,7 +282,8 @@ function Home() {
                   <div className="flex items-center gap-1 text-xs text-slate-500">
                     <FaClock className="text-[10px]" />
                     <span>{new Date(item.uploadDate).toLocaleDateString()}</span> •
-                    <span>{(item.fileSize / 1024).toFixed(0)} KB</span>
+                    {/* Hide size for links */}
+                    {item.fileSize > 0 && <span>{(item.fileSize / 1024).toFixed(0)} KB</span>}
                   </div>
                 </div>
               </div>
@@ -261,7 +295,7 @@ function Home() {
                 </p>
               )}
 
-              {/* Content Preview */}
+              {/* Preview */}
               {renderContentPreview(item)}
 
               {/* Actions */}
@@ -299,9 +333,13 @@ function Home() {
                     <button onClick={() => handleShare(item)} className="p-2 rounded-full text-slate-400 hover:text-sky-600 hover:bg-sky-50 dark:hover:bg-sky-900/20 transition-colors" title="Share">
                       <FaShareAlt />
                     </button>
-                    <button onClick={() => handleDownload(item)} className="p-2 rounded-full text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-colors" title="Download">
-                      <FaDownload />
-                    </button>
+
+                    {/* Hide download button for links */}
+                    {item.fileSize > 0 && (
+                        <button onClick={() => handleDownload(item)} className="p-2 rounded-full text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-colors" title="Download">
+                        <FaDownload />
+                        </button>
+                    )}
                  </div>
               </div>
             </div>
@@ -311,25 +349,10 @@ function Home() {
 
       <Footer />
 
-      {/* --- ALL MODALS --- */}
-
-      <ChatModal
-        isOpen={chatOpen}
-        onClose={() => setChatOpen(false)}
-        fileId={chatFile.id}
-        fileName={chatFile.name}
-      />
-
-      <CommentsModal
-        isOpen={commentsOpen}
-        onClose={() => setCommentsOpen(false)}
-        contentId={commentsContentId}
-        onCommentAdded={handleCommentAdded}
-      />
-
+      <ChatModal isOpen={chatOpen} onClose={() => setChatOpen(false)} fileId={chatFile.id} fileName={chatFile.name} />
+      <CommentsModal isOpen={commentsOpen} onClose={() => setCommentsOpen(false)} contentId={commentsContentId} onCommentAdded={handleCommentAdded} />
       <ProfileModal isOpen={profileOpen} onClose={() => setProfileOpen(false)} userEmail={userEmail} />
 
-      {/* Preview Modal */}
       {previewOpen && (
         <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
              <div className="bg-white w-full max-w-5xl h-[80vh] rounded-lg relative flex flex-col bg-slate-900">
@@ -343,7 +366,6 @@ function Home() {
         </div>
       )}
 
-      {/* Summary Modal */}
       {summaryOpen && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
           <div className="bg-white dark:bg-slate-950 rounded-2xl shadow-2xl w-full max-w-2xl p-6 max-h-[85vh] overflow-y-auto border border-white/10">

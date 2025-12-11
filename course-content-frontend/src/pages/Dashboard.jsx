@@ -11,9 +11,7 @@ import ProfileModal from "../components/ProfileModal.jsx";
 
 // API
 import {
-  fetchContents,
-  fetchMyContents, // ✅ Import this new function
-  uploadFile,
+  fetchMyContents,
   deleteContent,
   generateSummary,
   getSummary,
@@ -37,9 +35,9 @@ function Dashboard() {
 
   // --- DATA FETCHING (MY CONTENTS) ---
   const { data, isLoading, isError } = useQuery({
-    queryKey: ["my-contents"], // ✅ Unique key for dashboard data
+    queryKey: ["my-contents"],
     queryFn: async () => {
-      const res = await fetchMyContents(); // ✅ Call the endpoint for user-specific content
+      const res = await fetchMyContents();
       return res.data;
     },
   });
@@ -89,17 +87,9 @@ function Dashboard() {
   const [previewType, setPreviewType] = useState(null);
   const [previewFileName, setPreviewFileName] = useState("");
 
-  // Handlers
-  const handleUpload = async (file, description, onUploadProgress) => {
-      try {
-        await uploadFile(file, description, onUploadProgress);
-        // ✅ Invalidate 'my-contents' so the dashboard refreshes immediately
-        await queryClient.invalidateQueries({ queryKey: ["my-contents"] });
-      } catch (err) {
-        console.error(err);
-        alert("Upload failed");
-      }
-  };
+  // --- HANDLERS ---
+
+  // ✅ NOTE: 'handleUpload' removed. The FileUpload component now handles the API call internally.
 
   const handleDownload = async (item) => {
     try {
@@ -134,6 +124,12 @@ function Dashboard() {
 
   const handleView = (item) => {
     try {
+      // Handle Link/YouTube
+      if (item.fileType === "video/youtube" || item.fileType === "resource/link") {
+        window.open(item.fileUrl, "_blank");
+        return;
+      }
+
       const contentType = item.fileType || "application/octet-stream";
       let type = "other";
       if (contentType.includes("pdf")) type = "pdf";
@@ -195,7 +191,8 @@ function Dashboard() {
         <div className="grid gap-8 lg:grid-cols-5">
           {/* Left: Upload */}
           <div className="lg:col-span-2">
-            <FileUpload onUpload={handleUpload} />
+            {/* ✅ FIXED: Pass onUploadSuccess to refresh the list */}
+            <FileUpload onUploadSuccess={() => queryClient.invalidateQueries({ queryKey: ["my-contents"] })} />
           </div>
 
           {/* Right: Content List (Card with shadow) */}
