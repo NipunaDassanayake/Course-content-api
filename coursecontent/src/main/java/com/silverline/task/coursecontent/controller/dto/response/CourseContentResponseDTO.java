@@ -13,5 +13,8 @@ public class CourseContentResponseDTO {
     private LocalDateTime uploadDate;
     private String fileUrl;
     private String uploadedBy;
-    private String uploaderImage;   // ✅ New Field for Profile Picture
+    private String uploaderImage;
+    private int likeCount;
+    private int commentCount;
+    private boolean likedByCurrentUser;// ✅ New Field for Profile Picture
 }
