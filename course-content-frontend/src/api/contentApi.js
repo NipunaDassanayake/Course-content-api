@@ -6,6 +6,9 @@ const api = axios.create({
   baseURL: BASE_URL,
 });
 
+export const addContentLink = (url, description) =>
+  api.post("/content/link", { url, description });
+
 // ✅ Request Interceptor: Attach Token
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem("token");
