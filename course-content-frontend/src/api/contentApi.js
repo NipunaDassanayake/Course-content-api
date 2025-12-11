@@ -21,6 +21,11 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+// Interaction Endpoints
+export const toggleLike = (id) => api.post(`/interactions/${id}/like`);
+export const getComments = (id) => api.get(`/interactions/${id}/comments`);
+export const addComment = (id, text) => api.post(`/interactions/${id}/comment`, text);
+
 // Update Profile Picture
 export const updateProfilePicture = (formData) =>
   api.post("/users/profile-picture", formData, {

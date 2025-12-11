@@ -133,6 +133,8 @@ public class CourseContentServiceImpl implements CourseContentService {
         dto.setFileType(entity.getFileType());
         dto.setFileSize(entity.getFileSize());
         dto.setUploadDate(entity.getUploadDate());
+        dto.setLikeCount(entity.getLikes().size());
+        dto.setCommentCount(entity.getComments().size());
         dto.setFileUrl(fileStorageService.getPublicUrl(entity.getFileUrl()));
 
         if (entity.getUser() != null) {
