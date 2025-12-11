@@ -1,6 +1,6 @@
 package com.silverline.task.coursecontent.controller;
 
-import com.silverline.task.coursecontent.model.Notification;
+import com.silverline.task.coursecontent.controller.dto.response.NotificationResponseDTO; // ✅ Import DTO
 import com.silverline.task.coursecontent.service.NotificationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -18,7 +18,8 @@ public class NotificationController {
     private final NotificationService notificationService;
 
     @GetMapping
-    public ResponseEntity<List<Notification>> getNotifications(Principal principal) {
+    // ✅ Return List<NotificationResponseDTO>
+    public ResponseEntity<List<NotificationResponseDTO>> getNotifications(Principal principal) {
         return ResponseEntity.ok(notificationService.getUserNotifications(principal.getName()));
     }
 

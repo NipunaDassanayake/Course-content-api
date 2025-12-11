@@ -1,11 +1,13 @@
 package com.silverline.task.coursecontent.service.impl;
 
+import com.silverline.task.coursecontent.controller.dto.response.NotificationResponseDTO;
 import com.silverline.task.coursecontent.model.*;
 import com.silverline.task.coursecontent.repository.NotificationRepository;
 import com.silverline.task.coursecontent.service.NotificationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -34,8 +36,34 @@ public class NotificationServiceImpl implements NotificationService {
     }
 
     @Override
-    public List<Notification> getUserNotifications(String email) {
-        return notificationRepository.findByRecipientEmailOrderByCreatedAtDesc(email);
+    public List<NotificationResponseDTO> getUserNotifications(String email) {
+        // ✅ Map Entity -> DTO here
+        return notificationRepository.findByRecipientEmailOrderByCreatedAtDesc(email)
+                .stream()
+                .map(this::toDto)
+                .collect(Collectors.toList());
+    }
+
+    private NotificationResponseDTO toDto(Notification entity) {
+        NotificationResponseDTO dto = new NotificationResponseDTO();
+        dto.setId(entity.getId());
+        dto.setMessage(entity.getMessage());
+        dto.setRead(entity.isRead());
+        dto.setCreatedAt(entity.getCreatedAt());
+        dto.setType(entity.getType());
+
+        if (entity.getActor() != null) {
+            // Use Name if available, else Email
+            String name = (entity.getActor().getName() != null) ? entity.getActor().getName() : entity.getActor().getEmail();
+            dto.setActorName(name);
+            dto.setActorImage(entity.getActor().getProfilePicture());
+        }
+
+        if (entity.getContent() != null) {
+            dto.setContentId(entity.getContent().getId());
+        }
+
+        return dto;
     }
 
     @Override
