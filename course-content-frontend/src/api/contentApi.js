@@ -6,10 +6,16 @@ const api = axios.create({
   baseURL: BASE_URL,
 });
 
-// ✅ Add Interceptor to attach JWT
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem("token");
-  if (token) {
+
+  // Check if the request URL is login, register, OR google
+  const isAuthRequest =
+    config.url.includes("/auth/login") ||
+    config.url.includes("/auth/register") ||
+    config.url.includes("/auth/google"); // 👈 ADD THIS
+
+  if (token && !isAuthRequest) {
     config.headers.Authorization = `Bearer ${token}`;
   }
   return config;
@@ -19,9 +25,15 @@ api.interceptors.request.use((config) => {
 
 // Fetch ALL contents (For Home Page)
 export const fetchContents = () => api.get("/content");
+// Google Login
+export const googleLogin = (token) => api.post("/auth/google", { token });
 
 // ✅ Fetch MY contents (For Dashboard)
 export const fetchMyContents = () => api.get("/content/my");
+
+// Chat endpoint
+export const chatWithContent = (id, question) =>
+  api.post(`/chat/${id}`, { question });
 
 // Auth endpoints
 export const login = (data) => api.post("/auth/login", data);
