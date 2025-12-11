@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { FaBell, FaTimes, FaHeart, FaComment } from "react-icons/fa";
+import { FaBell, FaTimes, FaHeart, FaComment, FaUserCircle } from "react-icons/fa";
 import { getNotifications, markNotificationRead, markAllNotificationsRead } from "../api/contentApi";
 
 function NotificationsModal({ isOpen, onClose }) {
@@ -7,26 +7,46 @@ function NotificationsModal({ isOpen, onClose }) {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (isOpen) fetchNotifications();
+    if (isOpen) {
+        fetchNotifications();
+    }
   }, [isOpen]);
 
   const fetchNotifications = async () => {
     setLoading(true);
     try {
       const res = await getNotifications();
-      setNotifications(res.data);
-    } catch (e) { console.error(e); }
+      // ✅ Safety Check: Ensure data is an array before setting
+      if (Array.isArray(res.data)) {
+          setNotifications(res.data);
+      } else {
+          console.warn("Unexpected notification data format:", res.data);
+          setNotifications([]); // Fallback to empty array
+      }
+    } catch (e) {
+        console.error("Failed to fetch notifications:", e);
+        setNotifications([]);
+    }
     finally { setLoading(false); }
   };
 
   const handleRead = async (id) => {
-    await markNotificationRead(id);
-    setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
+    try {
+        await markNotificationRead(id);
+        // Optimistically update UI
+        setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
+    } catch (e) {
+        console.error("Failed to mark read", e);
+    }
   };
 
   const handleMarkAll = async () => {
-    await markAllNotificationsRead();
-    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+    try {
+        await markAllNotificationsRead();
+        setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+    } catch (e) {
+        console.error("Failed to mark all read", e);
+    }
   };
 
   if (!isOpen) return null;
@@ -40,26 +60,73 @@ function NotificationsModal({ isOpen, onClose }) {
           <h3 className="font-bold text-slate-800 dark:text-slate-100 text-sm flex items-center gap-2">
             <FaBell className="text-sky-500" /> Notifications
           </h3>
-          <div className="flex gap-2">
-             <button onClick={handleMarkAll} className="text-xs text-sky-600 hover:underline">Mark all read</button>
-             <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><FaTimes /></button>
+          <div className="flex gap-3 items-center">
+             <button onClick={handleMarkAll} className="text-xs font-medium text-sky-600 hover:text-sky-700 dark:hover:text-sky-400 transition-colors">
+                Mark all read
+             </button>
+             <button onClick={onClose} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors">
+                <FaTimes />
+             </button>
           </div>
         </div>
 
         {/* List */}
         <div className="flex-1 overflow-y-auto p-2 bg-slate-50/50 dark:bg-slate-900/20">
-            {loading ? <p className="text-center text-xs text-slate-400 mt-4">Loading...</p> :
-             notifications.length === 0 ? <p className="text-center text-xs text-slate-400 mt-10">No notifications yet.</p> : (
+            {loading ? (
+                <div className="flex flex-col items-center justify-center h-40 space-y-2">
+                    <div className="w-5 h-5 border-2 border-sky-500 border-t-transparent rounded-full animate-spin"></div>
+                    <p className="text-xs text-slate-400">Loading updates...</p>
+                </div>
+            ) : notifications.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-64 text-center p-4">
+                    <div className="w-12 h-12 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mb-3">
+                        <FaBell className="text-slate-300 dark:text-slate-600 text-xl" />
+                    </div>
+                    <p className="text-sm font-medium text-slate-500 dark:text-slate-400">No new notifications</p>
+                    <p className="text-xs text-slate-400 mt-1">We'll let you know when something happens!</p>
+                </div>
+            ) : (
                notifications.map(n => (
                  <div key={n.id}
-                      onClick={() => handleRead(n.id)}
-                      className={`p-3 mb-2 rounded-xl flex gap-3 cursor-pointer transition-colors border ${n.read ? 'bg-white dark:bg-slate-900 border-transparent opacity-60' : 'bg-sky-50 dark:bg-sky-900/20 border-sky-100 dark:border-sky-800'}`}>
-                    <div className={`shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${n.type === 'LIKE' ? 'bg-red-100 text-red-500' : 'bg-blue-100 text-blue-500'}`}>
-                        {n.type === 'LIKE' ? <FaHeart size={12}/> : <FaComment size={12}/>}
+                      onClick={() => !n.read && handleRead(n.id)}
+                      className={`group p-3 mb-2 rounded-xl flex gap-3 cursor-pointer transition-all border relative overflow-hidden
+                        ${n.read
+                            ? 'bg-white dark:bg-slate-950 border-transparent opacity-70 hover:opacity-100'
+                            : 'bg-sky-50 dark:bg-sky-900/20 border-sky-100 dark:border-sky-800 shadow-sm'
+                        }`}
+                 >
+                    {/* Unread Indicator Dot */}
+                    {!n.read && (
+                        <div className="absolute top-3 right-3 w-2 h-2 bg-sky-500 rounded-full"></div>
+                    )}
+
+                    {/* Actor Avatar */}
+                    <div className="shrink-0 relative">
+                        {n.actorImage ? (
+                            <img
+                                src={n.actorImage}
+                                alt={n.actorName}
+                                referrerPolicy="no-referrer"
+                                className="w-10 h-10 rounded-full object-cover border border-slate-200 dark:border-slate-700"
+                            />
+                        ) : (
+                            <div className="w-10 h-10 rounded-full bg-slate-200 dark:bg-slate-800 flex items-center justify-center text-slate-400">
+                                <FaUserCircle size={20} />
+                            </div>
+                        )}
+
+                        {/* Type Icon Badge */}
+                        <div className={`absolute -bottom-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center border-2 border-white dark:border-slate-900 ${n.type === 'LIKE' ? 'bg-red-500 text-white' : 'bg-blue-500 text-white'}`}>
+                            {n.type === 'LIKE' ? <FaHeart size={8}/> : <FaComment size={8}/>}
+                        </div>
                     </div>
-                    <div>
-                        <p className="text-sm text-slate-700 dark:text-slate-200 leading-tight">{n.message}</p>
-                        <p className="text-[10px] text-slate-400 mt-1">{new Date(n.createdAt).toLocaleString()}</p>
+
+                    <div className="flex-1 pr-4">
+                        <p className="text-sm text-slate-800 dark:text-slate-100 leading-snug">
+                            <span className="font-bold">{n.actorName}</span>
+                            <span className="text-slate-600 dark:text-slate-400 font-normal"> {n.message.replace(n.actorName, '')}</span>
+                        </p>
+                        <p className="text-[10px] text-slate-400 mt-1 font-medium">{new Date(n.createdAt).toLocaleString()}</p>
                     </div>
                  </div>
                ))
