@@ -12,6 +12,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.security.Principal;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/content")
@@ -72,5 +73,15 @@ public class CourseContentController {
     @GetMapping("/my-contents")
     public ResponseEntity<List<CourseContentResponseDTO>> getMyContents(Principal principal) {
         return ResponseEntity.ok(courseContentService.getMyContents(principal.getName()));
+    }
+
+    @PostMapping("/link")
+    public ResponseEntity<UploadResponseDTO> addLink(
+            @RequestBody Map<String, String> payload,
+            Principal principal
+    ) {
+        String url = payload.get("url");
+        String description = payload.get("description");
+        return ResponseEntity.ok(courseContentService.addLink(url, description, principal.getName()));
     }
 }

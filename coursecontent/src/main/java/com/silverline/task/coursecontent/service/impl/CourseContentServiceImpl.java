@@ -103,6 +103,38 @@ public class CourseContentServiceImpl implements CourseContentService {
         }
     }
 
+    // ✅ NEW METHOD: Add Online Link
+    @Override
+    public UploadResponseDTO addLink(String url, String description, String userEmail) {
+        User user = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+        CourseContent entity = new CourseContent();
+        entity.setFileName(url); // For links, the URL is the "filename"
+        entity.setDescription(description);
+        entity.setUploadDate(LocalDateTime.now());
+        entity.setFileUrl(url); // Store the direct URL
+        entity.setUser(user);
+        entity.setFileSize(0L); // Links have no file size
+
+        // Simple detection for YouTube or generic link
+        if (url.contains("youtube.com") || url.contains("youtu.be")) {
+            entity.setFileType("video/youtube");
+        } else {
+            entity.setFileType("resource/link");
+        }
+
+        CourseContent saved = repository.save(entity);
+
+        UploadResponseDTO dto = new UploadResponseDTO();
+        dto.setId(saved.getId());
+        dto.setFileName(saved.getFileName());
+        dto.setFileType(saved.getFileType());
+        dto.setDownloadUrl(url); // Direct link for download URL
+
+        return dto;
+    }
+
     @Override
     public List<CourseContentResponseDTO> getAllContents() {
         return repository.findAll()
@@ -122,6 +154,12 @@ public class CourseContentServiceImpl implements CourseContentService {
     public byte[] getFileData(Long id) {
         CourseContent content = repository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Content not found with id " + id));
+
+        // If it's a link, we can't download it as a byte array
+        if (content.getFileUrl().startsWith("http")) {
+            throw new FileStorageException("Cannot download external link as file");
+        }
+
         return fileStorageService.readFile(content.getFileUrl());
     }
 
@@ -133,18 +171,25 @@ public class CourseContentServiceImpl implements CourseContentService {
         dto.setFileType(entity.getFileType());
         dto.setFileSize(entity.getFileSize());
         dto.setUploadDate(entity.getUploadDate());
+
+        // ✅ CRITICAL FIX: Check if it's an S3 key or an External URL
+        if (entity.getFileUrl().startsWith("http")) {
+            dto.setFileUrl(entity.getFileUrl()); // Return as-is
+        } else {
+            dto.setFileUrl(fileStorageService.getPublicUrl(entity.getFileUrl())); // Generate S3 URL
+        }
+
+        // Map Likes & Comments Counts
         dto.setLikeCount(entity.getLikes().size());
         dto.setCommentCount(entity.getComments().size());
-        dto.setFileUrl(fileStorageService.getPublicUrl(entity.getFileUrl()));
 
         if (entity.getUser() != null) {
-            // ✅ LOGIC: Use Name if available, otherwise fallback to Email
             String displayName = (entity.getUser().getName() != null && !entity.getUser().getName().isEmpty())
                     ? entity.getUser().getName()
                     : entity.getUser().getEmail();
 
-            dto.setUploadedBy(displayName); // This sets the name or email in the DTO
-            dto.setUploaderImage(entity.getUser().getProfilePicture()); // Map profile picture
+            dto.setUploadedBy(displayName);
+            dto.setUploaderImage(entity.getUser().getProfilePicture());
         } else {
             dto.setUploadedBy("Anonymous");
             dto.setUploaderImage(null);
@@ -155,25 +200,47 @@ public class CourseContentServiceImpl implements CourseContentService {
 
     @Override
     public void deleteContent(Long id) {
+        // Internal method usually not called directly from controller now
+        // But kept for safety
+        deleteContent(id, null);
+    }
+
+    @Override
+    public void deleteContent(Long id, String userEmail) {
         CourseContent content = repository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Content not found with id: " + id));
 
+        // ✅ SECURITY CHECK (skip if userEmail is null, e.g. admin deletion)
+        if (userEmail != null && !content.getUser().getEmail().equals(userEmail)) {
+            log.warn("User {} tried to delete content {} owned by {}", userEmail, id, content.getUser().getEmail());
+            throw new RuntimeException("Unauthorized: You do not own this content");
+        }
+
         String storedRef = content.getFileUrl();
+
+        // Only delete from S3 if it's NOT an external link
         try {
-            if (storedRef != null && !storedRef.isBlank()) {
+            if (storedRef != null && !storedRef.isBlank() && !storedRef.startsWith("http")) {
                 fileStorageService.deleteFile(storedRef);
             }
         } catch (Exception ex) {
-            log.error("Failed to delete file from S3. ref={}, error={}", storedRef, ex.getMessage());
+            log.error("Failed to delete file from S3.", ex);
         }
 
+        // Cascade delete handles comments/likes/notifications automatically
         repository.delete(content);
+        log.info("Deleted CourseContent entity with id={}", id);
     }
 
     @Override
     public SummaryResponseDTO generateAndSaveSummary(Long contentId) {
         CourseContent content = repository.findById(contentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Content not found with id: " + contentId));
+
+        // Skip summary for links
+        if (content.getFileUrl().startsWith("http")) {
+            throw new FileStorageException("Cannot summarize external links yet.");
+        }
 
         byte[] fileBytes = fileStorageService.readFile(content.getFileUrl());
 
@@ -206,29 +273,5 @@ public class CourseContentServiceImpl implements CourseContentService {
                 .stream()
                 .map(this::toDto)
                 .toList();
-    }
-
-    @Override
-    public void deleteContent(Long id, String userEmail) {
-        CourseContent content = repository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Content not found with id: " + id));
-
-        // ✅ SECURITY CHECK
-        if (!content.getUser().getEmail().equals(userEmail)) {
-            log.warn("User {} tried to delete content {} owned by {}", userEmail, id, content.getUser().getEmail());
-            throw new RuntimeException("Unauthorized: You do not own this content");
-        }
-
-        String storedRef = content.getFileUrl();
-        try {
-            if (storedRef != null && !storedRef.isBlank()) {
-                fileStorageService.deleteFile(storedRef);
-            }
-        } catch (Exception ex) {
-            log.error("Failed to delete file from S3.", ex);
-        }
-
-        repository.delete(content);
-        log.info("Deleted CourseContent entity with id={}", id);
     }
 }

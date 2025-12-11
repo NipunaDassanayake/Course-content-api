@@ -10,6 +10,7 @@ import java.util.List;
 
 public interface CourseContentService {
 
+    UploadResponseDTO addLink(String url, String description, String userEmail);
     List<CourseContentResponseDTO> getMyContents(String userEmail); // ✅ New
     void deleteContent(Long id, String userEmail);
     List<CourseContentResponseDTO> getAllContents();
