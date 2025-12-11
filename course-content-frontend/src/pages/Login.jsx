@@ -1,7 +1,9 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { login } from "../api/contentApi";
+import { login, googleLogin } from "../api/contentApi"; // ✅ Import googleLogin
 import { FaLock, FaEnvelope, FaGithub, FaTwitter, FaLinkedin } from "react-icons/fa";
+import { GoogleLogin } from "@react-oauth/google"; // ✅ Import Google Component
+import { jwtDecode } from "jwt-decode"; // ✅ Import decoder
 import logo from "../assets/lernLogo.png";
 
 function Login() {
@@ -22,9 +24,32 @@ function Login() {
       localStorage.setItem("token", res.data.token);
       localStorage.setItem("userEmail", res.data.email);
 
-      navigate("/dashboard");
+      navigate("/home"); // ✅ Redirect to Home Feed
     } catch (err) {
       setError("Invalid email or password");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ✅ Google Login Handler
+  const handleGoogleSuccess = async (credentialResponse) => {
+    try {
+      setLoading(true);
+      // Send Google ID Token to Backend
+      const res = await googleLogin(credentialResponse.credential);
+
+      // Save Token
+      localStorage.setItem("token", res.data.token);
+
+      // Decode JWT to get email (safe fallback if response doesn't have email directly)
+      const decoded = jwtDecode(res.data.token);
+      localStorage.setItem("userEmail", decoded.sub);
+
+      navigate("/home"); // ✅ Redirect to Home Feed
+    } catch (err) {
+      console.error(err);
+      setError("Google Login Failed");
     } finally {
       setLoading(false);
     }
@@ -104,6 +129,28 @@ function Login() {
               {loading ? "Signing in..." : "Login"}
             </button>
           </form>
+
+          {/* ✅ OR Divider */}
+          <div className="relative my-6">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-slate-300 dark:border-slate-700"></div>
+            </div>
+            <div className="relative flex justify-center text-sm">
+              <span className="bg-white dark:bg-slate-950 px-2 text-slate-500">Or continue with</span>
+            </div>
+          </div>
+
+          {/* ✅ Google Login Button */}
+          <div className="flex justify-center">
+            <GoogleLogin
+              onSuccess={handleGoogleSuccess}
+              onError={() => setError("Google Login Failed")}
+              theme="filled_blue"
+              shape="pill"
+              text="signin_with"
+              width="300"
+            />
+          </div>
 
           <div className="mt-8 text-center text-sm text-slate-500 dark:text-slate-400">
             <p>Don't have an account?</p>
