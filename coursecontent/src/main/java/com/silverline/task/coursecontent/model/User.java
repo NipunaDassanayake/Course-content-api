@@ -28,6 +28,9 @@ public class User implements UserDetails {
     @Enumerated(EnumType.STRING)
     private AuthProvider authProvider;
 
+    @Column(name = "profile_picture", columnDefinition = "TEXT")
+    private String profilePicture;
+
     // -- UserDetails methods --
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
