@@ -15,6 +15,14 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+
+
+// Fetch ALL contents (For Home Page)
+export const fetchContents = () => api.get("/content");
+
+// ✅ Fetch MY contents (For Dashboard)
+export const fetchMyContents = () => api.get("/content/my");
+
 // Auth endpoints
 export const login = (data) => api.post("/auth/login", data);
 export const register = (data) => api.post("/auth/register", data);
@@ -22,8 +30,6 @@ export const register = (data) => api.post("/auth/register", data);
 // User endpoints
 export const changePassword = (data) => api.put("/users/password", data);
 
-// Content endpoints
-export const fetchContents = () => api.get("/content");
 
 // ✅ FIXED: Added 'description' to the arguments list
 export const uploadFile = (file, description, onUploadProgress) => {

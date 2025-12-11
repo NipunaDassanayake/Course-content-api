@@ -65,10 +65,14 @@ public class CourseContentController {
         return new ResponseEntity<>(data, headers, HttpStatus.OK);
     }
 
+    //UPDATED: Delete with ownership check
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteContent(@PathVariable Long id) {
-        courseContentService.deleteContent(id);
-        return ResponseEntity.noContent().build(); // 204 No Content
+    public ResponseEntity<Void> deleteContent(
+            @PathVariable Long id,
+            java.security.Principal principal // Get logged in user
+    ) {
+        courseContentService.deleteContent(id, principal.getName());
+        return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/{id}/summary")
@@ -84,5 +88,11 @@ public class CourseContentController {
         return ResponseEntity.ok(
                 new SummaryResponseDTO(content.getId(), content.getSummary(), content.getKeyPoints())
         );
+    }
+
+    //  ✅ NEW: Endpoint for DASHBOARD (My Files Only)
+    @GetMapping("/my")
+    public ResponseEntity<List<CourseContentResponseDTO>> getMyContents(java.security.Principal principal) {
+        return ResponseEntity.ok(courseContentService.getMyContents(principal.getName()));
     }
 }

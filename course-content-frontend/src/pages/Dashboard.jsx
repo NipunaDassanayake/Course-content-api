@@ -7,11 +7,12 @@ import FileUpload from "../components/FileUpload.jsx";
 import ContentList from "../components/ContentList.jsx";
 import Header from "../components/Header.jsx";
 import Footer from "../components/Footer.jsx";
-import ProfileModal from "../components/ProfileModal.jsx"; // ✅ New Import
+import ProfileModal from "../components/ProfileModal.jsx";
 
 // API
 import {
   fetchContents,
+  fetchMyContents, // ✅ Import this new function
   uploadFile,
   deleteContent,
   generateSummary,
@@ -34,11 +35,11 @@ function Dashboard() {
   // --- PROFILE MODAL STATE ---
   const [profileOpen, setProfileOpen] = useState(false);
 
-  // --- DATA FETCHING ---
+  // --- DATA FETCHING (MY CONTENTS) ---
   const { data, isLoading, isError } = useQuery({
-    queryKey: ["contents"],
+    queryKey: ["my-contents"], // ✅ Unique key for dashboard data
     queryFn: async () => {
-      const res = await fetchContents();
+      const res = await fetchMyContents(); // ✅ Call the endpoint for user-specific content
       return res.data;
     },
   });
@@ -88,11 +89,12 @@ function Dashboard() {
   const [previewType, setPreviewType] = useState(null);
   const [previewFileName, setPreviewFileName] = useState("");
 
-  // Handlers (Upload, Download, etc.) - SAME AS BEFORE
-  const handleUpload = async (file, description, onUploadProgress) => { // ✅ Added description param
+  // Handlers
+  const handleUpload = async (file, description, onUploadProgress) => {
       try {
-        await uploadFile(file, description, onUploadProgress); // ✅ Pass it to API
-        await queryClient.invalidateQueries({ queryKey: ["contents"] });
+        await uploadFile(file, description, onUploadProgress);
+        // ✅ Invalidate 'my-contents' so the dashboard refreshes immediately
+        await queryClient.invalidateQueries({ queryKey: ["my-contents"] });
       } catch (err) {
         console.error(err);
         alert("Upload failed");
@@ -122,7 +124,8 @@ function Dashboard() {
     if (!window.confirm("Are you sure you want to delete this file?")) return;
     try {
       await deleteContent(id);
-      await queryClient.invalidateQueries({ queryKey: ["contents"] });
+      // ✅ Invalidate 'my-contents' to remove the deleted item from the list
+      await queryClient.invalidateQueries({ queryKey: ["my-contents"] });
     } catch (err) {
       console.error(err);
       alert("Failed to delete file");
@@ -177,7 +180,6 @@ function Dashboard() {
   };
 
   return (
-    // ✅ 1. Applied Gradient Background to main container
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-slate-50 to-sky-50 dark:from-slate-900 dark:to-slate-800 text-slate-900 dark:text-slate-100 font-sans transition-colors duration-300">
 
       {/* Header with Profile Trigger */}
@@ -186,7 +188,7 @@ function Dashboard() {
         setDarkMode={setDarkMode}
         onLogout={handleLogout}
         userEmail={userEmail}
-        onOpenProfile={() => setProfileOpen(true)} // ✅ Trigger
+        onOpenProfile={() => setProfileOpen(true)}
       />
 
       <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8">
@@ -201,7 +203,7 @@ function Dashboard() {
             <div className="flex flex-col gap-4 mb-4">
               <div className="flex items-center justify-between">
                 <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">
-                  Course Materials
+                  My Course Materials
                 </h2>
                 <span className="bg-sky-100 dark:bg-sky-900/30 text-sky-700 dark:text-sky-300 px-3 py-1 rounded-full text-xs font-bold shadow-sm">
                   {filteredContents.length} Files
@@ -251,7 +253,6 @@ function Dashboard() {
 
       <Footer />
 
-      {/* ✅ 2. Profile Modal */}
       <ProfileModal
         isOpen={profileOpen}
         onClose={() => setProfileOpen(false)}
@@ -284,7 +285,7 @@ function Dashboard() {
                 <span className="text-xs font-bold text-purple-600 uppercase tracking-wider bg-purple-100 dark:bg-purple-900/30 px-2 py-1 rounded">AI Insight</span>
                 <h3 className="text-xl font-bold mt-2 text-slate-800 dark:text-white">{summaryData?.fileName}</h3>
               </div>
-              <button onClick={() => setSummaryModalOpen(false)} className="text-slate-400 hover:text-slate-600 text-xl font-bold">✕</button>
+              <button onClick={() => setSummaryModalOpen(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-xl font-bold">✕</button>
             </div>
 
             {summaryLoading && (
@@ -298,7 +299,7 @@ function Dashboard() {
               <div className="space-y-6">
                 <div className="bg-slate-50 dark:bg-slate-900/50 p-5 rounded-xl border border-slate-100 dark:border-slate-800">
                   <h4 className="font-bold mb-2 flex items-center gap-2 text-slate-700 dark:text-slate-200">📝 Summary</h4>
-                  <p className="text-slate-600 dark:text-slate-300 text-sm leading-relaxed">{summaryData.summary}</p>
+                  <p className="text-slate-600 dark:text-slate-300 text-sm leading-relaxed whitespace-pre-wrap">{summaryData.summary}</p>
                 </div>
                 <div>
                   <h4 className="font-bold mb-3 flex items-center gap-2 text-slate-700 dark:text-slate-200">🔑 Key Takeaways</h4>
