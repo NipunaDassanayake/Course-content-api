@@ -1,6 +1,6 @@
-import React, { useState } from "react";
-import { FaLock, FaTimes, FaSave, FaUserCircle } from "react-icons/fa";
-import { changePassword } from "../api/contentApi";
+import React, { useState, useRef } from "react";
+import { FaLock, FaTimes, FaSave, FaUserCircle, FaCamera } from "react-icons/fa";
+import { changePassword, updateProfilePicture } from "../api/contentApi"; // ✅ Import API
 
 function ProfileModal({ isOpen, onClose, userEmail }) {
   const [currentPassword, setCurrentPassword] = useState("");
@@ -9,46 +9,66 @@ function ProfileModal({ isOpen, onClose, userEmail }) {
   const [message, setMessage] = useState({ text: "", type: "" });
   const [loading, setLoading] = useState(false);
 
-  // ✅ Get Avatar URL
-  const userAvatar = localStorage.getItem("userAvatar");
+  // ✅ Image Upload State
+  const [uploadingImg, setUploadingImg] = useState(false);
+  const fileInputRef = useRef(null);
+  const [userAvatar, setUserAvatar] = useState(localStorage.getItem("userAvatar")); // Local state for immediate UI update
 
   if (!isOpen) return null;
 
-  const handleSubmit = async (e) => {
+  // ✅ Handle File Selection & Upload
+  const handleImageChange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    setUploadingImg(true);
+    const formData = new FormData();
+    formData.append("file", file);
+
+    try {
+        const res = await updateProfilePicture(formData);
+        const newUrl = res.data; // The backend returns the new URL string directly
+
+        // Update Local Storage & State
+        localStorage.setItem("userAvatar", newUrl);
+        setUserAvatar(newUrl);
+
+        setMessage({ text: "Profile picture updated!", type: "success" });
+
+        // Reload page to update Header (optional, or use context)
+        setTimeout(() => window.location.reload(), 1000);
+
+    } catch (err) {
+        setMessage({ text: "Failed to upload image.", type: "error" });
+    } finally {
+        setUploadingImg(false);
+    }
+  };
+
+  const handlePasswordSubmit = async (e) => {
     e.preventDefault();
     setMessage({ text: "", type: "" });
 
-    // ✅ Frontend Validation: Check if passwords match
     if (newPassword !== confirmPassword) {
       setMessage({ text: "New passwords do not match!", type: "error" });
       return;
     }
-
     if (newPassword.length < 6) {
         setMessage({ text: "Password must be at least 6 characters.", type: "error" });
         return;
     }
 
     setLoading(true);
-
     try {
-      // Send only current and new password to backend
       await changePassword({ currentPassword, newPassword });
-
       setMessage({ text: "Password updated successfully!", type: "success" });
-
-      // Clear form after delay
       setTimeout(() => {
         onClose();
-        setCurrentPassword("");
-        setNewPassword("");
-        setConfirmPassword("");
+        setCurrentPassword(""); setNewPassword(""); setConfirmPassword("");
         setMessage({ text: "", type: "" });
       }, 1500);
-
     } catch (err) {
-      const errorMsg = err.response?.data || "Failed to update password";
-      setMessage({ text: typeof errorMsg === 'string' ? errorMsg : "Error updating password", type: "error" });
+      setMessage({ text: "Failed to update password", type: "error" });
     } finally {
       setLoading(false);
     }
@@ -61,72 +81,92 @@ function ProfileModal({ isOpen, onClose, userEmail }) {
         {/* Header */}
         <div className="bg-slate-50 dark:bg-slate-900/50 px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
           <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
-
-            {/* ✅ Avatar in Modal Header with Referrer Fix */}
-            {userAvatar ? (
-               <img
-                 src={userAvatar}
-                 referrerPolicy="no-referrer"
-                 className="w-8 h-8 rounded-full border border-slate-300 dark:border-slate-600 object-cover"
-                 alt="Profile"
-               />
-            ) : (
-               <FaLock className="text-sky-600" />
-            )}
-
-            Security Settings
+            Settings
           </h3>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors">
             <FaTimes />
           </button>
         </div>
 
-        {/* Content */}
         <div className="p-6">
-          <p className="text-sm text-slate-500 mb-6 flex items-center gap-2">
-            Update password for: <span className="font-semibold text-slate-700 dark:text-slate-300">{userEmail}</span>
-          </p>
 
+          {/* ✅ Profile Picture Upload Section */}
+          <div className="flex flex-col items-center mb-6">
+            <div className="relative group cursor-pointer" onClick={() => fileInputRef.current.click()}>
+              {userAvatar ? (
+                 <img
+                   src={userAvatar}
+                   referrerPolicy="no-referrer"
+                   className="w-24 h-24 rounded-full border-4 border-slate-100 dark:border-slate-800 object-cover shadow-sm"
+                   alt="Profile"
+                 />
+              ) : (
+                 <div className="w-24 h-24 rounded-full bg-slate-200 dark:bg-slate-800 flex items-center justify-center text-4xl text-slate-400">
+                    <FaUserCircle />
+                 </div>
+              )}
+
+              {/* Overlay with Camera Icon */}
+              <div className="absolute inset-0 bg-black/30 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                 {uploadingImg ? (
+                    <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                 ) : (
+                    <FaCamera className="text-white text-xl drop-shadow-md" />
+                 )}
+              </div>
+            </div>
+
+            {/* Hidden File Input */}
+            <input
+                type="file"
+                ref={fileInputRef}
+                className="hidden"
+                accept="image/*"
+                onChange={handleImageChange}
+            />
+
+            <p className="mt-3 font-semibold text-slate-700 dark:text-slate-200">{userEmail}</p>
+            <p className="text-xs text-slate-500">Click image to update</p>
+          </div>
+
+          <hr className="mb-6 border-slate-100 dark:border-slate-800" />
+
+          {/* Message Alert */}
           {message.text && (
             <div className={`text-sm p-3 rounded-lg mb-4 text-center border ${message.type === 'success' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-red-50 text-red-600 border-red-100'}`}>
               {message.text}
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Current Password */}
+          {/* Password Form */}
+          <form onSubmit={handlePasswordSubmit} className="space-y-4">
             <div>
               <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Current Password</label>
               <input
                 type="password"
                 required
-                placeholder="Enter current password"
                 className="w-full p-2.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-sky-500 outline-none transition-all"
                 value={currentPassword}
                 onChange={(e) => setCurrentPassword(e.target.value)}
               />
             </div>
 
-            {/* New Password */}
             <div>
               <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">New Password</label>
               <input
                 type="password"
                 required
-                placeholder="Enter new password"
                 className="w-full p-2.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-sky-500 outline-none transition-all"
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
               />
             </div>
 
-            {/* Confirm Password Field */}
             <div>
               <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Confirm New Password</label>
               <input
                 type="password"
                 required
-                placeholder="Re-enter new password"
                 className={`w-full p-2.5 rounded-lg border bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 outline-none transition-all
                   ${confirmPassword && newPassword !== confirmPassword
                     ? "border-red-300 focus:ring-red-500"

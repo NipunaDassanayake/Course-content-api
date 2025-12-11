@@ -1,13 +1,15 @@
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
-import { FaCloudUploadAlt, FaMoon, FaSun, FaSignOutAlt, FaUserCircle, FaCog, FaHome, FaColumns } from "react-icons/fa";
+import { FaMoon, FaSun, FaSignOutAlt, FaUserCircle, FaCog, FaHome, FaColumns } from "react-icons/fa";
+import logo from "../assets/lernLogo.png"; // ✅ Import your Logo
 
 function Header({ darkMode, setDarkMode, onLogout, userEmail, onOpenProfile }) {
   const location = useLocation();
 
-  // ✅ Get Avatar URL from local storage
+  // Get Avatar URL from local storage
   const userAvatar = localStorage.getItem("userAvatar");
 
+  // Helper to check active route
   const isActive = (path) => location.pathname === path
     ? "text-sky-600 dark:text-sky-400 bg-sky-50 dark:bg-sky-900/20"
     : "text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800";
@@ -17,11 +19,13 @@ function Header({ darkMode, setDarkMode, onLogout, userEmail, onOpenProfile }) {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex h-16 items-center justify-between">
 
-          {/* Logo */}
-          <Link to="/home" className="flex items-center gap-2 group">
-            <div className="bg-sky-600 text-white p-2 rounded-lg shadow-lg shadow-sky-500/20 group-hover:scale-105 transition-transform">
-              <FaCloudUploadAlt className="text-xl" />
-            </div>
+          {/* ✅ Logo Section */}
+          <Link to="/home" className="flex items-center gap-3 group">
+            <img
+              src={logo}
+              alt="LearnHub Logo"
+              className="h-10 w-auto object-contain group-hover:scale-105 transition-transform drop-shadow-sm"
+            />
             <div>
               <h1 className="text-xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">LearnHub</h1>
             </div>
@@ -48,7 +52,7 @@ function Header({ darkMode, setDarkMode, onLogout, userEmail, onOpenProfile }) {
             {userEmail && (
               <button onClick={onOpenProfile} className="hidden sm:flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-900 hover:bg-slate-200 dark:hover:bg-slate-800 px-3 py-1.5 rounded-full border border-slate-200 dark:border-slate-800 transition-all cursor-pointer group">
 
-                {/* ✅ Show Image with Referrer Fix */}
+                {/* User Avatar with Referrer Fix */}
                 {userAvatar ? (
                     <img
                       src={userAvatar}

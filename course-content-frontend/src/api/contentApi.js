@@ -21,7 +21,11 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-
+// Update Profile Picture
+export const updateProfilePicture = (formData) =>
+  api.post("/users/profile-picture", formData, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
 
 // Fetch ALL contents (For Home Page)
 export const fetchContents = () => api.get("/content");
