@@ -4,7 +4,10 @@ import { fetchContents, downloadFile, getSummary, generateSummary } from "../api
 import Header from "../components/Header";
 import Footer from "../components/Footer";
 import ProfileModal from "../components/ProfileModal";
-import { FaFilePdf, FaFileAlt, FaRobot, FaDownload, FaEye, FaClock, FaFileVideo, FaFileImage } from "react-icons/fa";
+import {
+  FaFilePdf, FaFileAlt, FaRobot, FaDownload,
+  FaEye, FaClock, FaFileVideo, FaFileImage, FaShareAlt
+} from "react-icons/fa"; // ✅ Imported FaShareAlt
 import { useNavigate } from "react-router-dom";
 
 function Home() {
@@ -66,6 +69,33 @@ function Home() {
         link.click();
         link.remove();
     } catch(e) { alert("Download failed"); }
+  };
+
+  // ✅ SHARE HANDLER
+  const handleShare = async (item) => {
+    const shareData = {
+      title: item.fileName,
+      text: item.description || `Check out this file: ${item.fileName}`,
+      url: item.fileUrl, // S3 Link
+    };
+
+    // 1. Try Native Share (Mobile/Supported Browsers)
+    if (navigator.share) {
+      try {
+        await navigator.share(shareData);
+      } catch (err) {
+        console.error("Error sharing:", err);
+      }
+    }
+    // 2. Fallback: Copy Link to Clipboard
+    else {
+      try {
+        await navigator.clipboard.writeText(item.fileUrl);
+        alert("Link copied to clipboard! 📋");
+      } catch (err) {
+        alert("Failed to copy link.");
+      }
+    }
   };
 
   const handleSummary = async (item) => {
@@ -179,6 +209,8 @@ function Home() {
 
               {/* Actions */}
               <div className="flex items-center justify-between border-t border-slate-100 dark:border-slate-800 pt-4">
+
+                 {/* Left Side: Preview & AI */}
                  <div className="flex gap-2">
                     {(!item.fileType?.startsWith("image") && !item.fileType?.startsWith("video")) && (
                       <button onClick={() => handleView(item)} className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
@@ -190,9 +222,26 @@ function Home() {
                         <FaRobot /> AI Summary
                     </button>
                  </div>
-                 <button onClick={() => handleDownload(item)} className="p-2 rounded-full text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-colors" title="Download">
-                    <FaDownload />
-                 </button>
+
+                 {/* Right Side: Share & Download */}
+                 <div className="flex gap-1">
+                    {/* ✅ New Share Button */}
+                    <button
+                      onClick={() => handleShare(item)}
+                      className="p-2 rounded-full text-slate-400 hover:text-sky-600 hover:bg-sky-50 dark:hover:bg-sky-900/20 transition-colors"
+                      title="Share"
+                    >
+                      <FaShareAlt />
+                    </button>
+
+                    <button
+                      onClick={() => handleDownload(item)}
+                      className="p-2 rounded-full text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-colors"
+                      title="Download"
+                    >
+                      <FaDownload />
+                    </button>
+                 </div>
               </div>
             </div>
           ))}
