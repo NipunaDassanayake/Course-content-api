@@ -23,6 +23,6 @@ Thumbs.db
 
 
 # === Backend (Spring Boot / Maven) ===
-**/application.properties
+
 **/application-*.yml
 **/application-*.yaml
