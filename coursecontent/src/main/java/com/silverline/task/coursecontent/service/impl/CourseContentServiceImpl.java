@@ -16,6 +16,7 @@ import com.silverline.task.coursecontent.service.FileTextExtractor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDateTime;
@@ -136,6 +137,7 @@ public class CourseContentServiceImpl implements CourseContentService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<CourseContentResponseDTO> getAllContents() {
         return repository.findAll()
                 .stream()
@@ -267,6 +269,7 @@ public class CourseContentServiceImpl implements CourseContentService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<CourseContentResponseDTO> getMyContents(String userEmail) {
         log.debug("Fetching contents for user: {}", userEmail);
         return repository.findAllByUserEmail(userEmail)
