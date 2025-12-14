@@ -1,4 +1,4 @@
-# 🚀 LearnHub Content System
+# 🚀 LearnHub - AI-Powered Course Content Platform
 
 **LearnHub** is an enterprise-grade, full-stack course management platform designed to streamline the sharing and consumption of educational materials. It combines robust cloud storage with **Generative AI** to provide instant summaries, key takeaways, and interactive chat capabilities for uploaded content.
 
@@ -7,14 +7,19 @@
 ![React](https://img.shields.io/badge/React-18-blue)
 ![Tailwind](https://img.shields.io/badge/Tailwind-CSS-38bdf8)
 ![Docker](https://img.shields.io/badge/Docker-Enabled-2496ed)
-![AWS](https://img.shields.io/badge/AWS-S3-232f3e)
+![AWS](https://img.shields.io/badge/AWS-EC2%20%26%20S3-232f3e)
+![Vercel](https://img.shields.io/badge/Vercel-Deployed-black)
+
+## 🌐 Live Demo
+- **Frontend (Vercel):** [https://course-frontend.vercel.app](https://course-frontend.vercel.app)
+- **Backend API (AWS EC2):** [http://13.214.176.196:8080/api/content](http://13.214.176.196:8080/api/content)
 
 ---
 
 ## ✨ Key Features
 
 ### 🧠 AI-Powered Learning
-* **Smart Summaries:** Integrates **Google Gemini AI 2.5** to automatically generate concise summaries and key takeaways for PDF documents.
+* **Smart Summaries:** Integrates **Google Gemini AI** to automatically generate concise summaries and key takeaways for PDF documents.
 * **AI Chat:** Context-aware chat functionality allows users to ask questions directly related to specific course materials.
 
 ### 📂 Robust Content Management
@@ -43,7 +48,7 @@
 
 ### **Backend (Microservices-Ready Architecture)**
 * **Framework:** Spring Boot 3 (Java 17)
-* **Database:** MySQL (Local) / PostgreSQL (Production/Render)
+* **Database:** MySQL 8 (Dockerized)
 * **ORM:** Hibernate / Spring Data JPA
 * **Security:** Spring Security 6, JWT, OAuth2
 * **AI Integration:** Google Gemini API
@@ -54,10 +59,12 @@
 * **Styling:** Tailwind CSS
 * **State Management:** React Query (TanStack Query)
 * **HTTP Client:** Axios
+* **Proxy:** Vercel Rewrites (for CORS handling)
 
 ### **DevOps**
 * **Containerization:** Docker (Multi-stage builds)
-* **Deployment:** Render (Backend), Vercel (Frontend)
+* **Deployment:** AWS EC2 (Backend), Vercel (Frontend)
+* **CI/CD:** Docker Hub Registry
 
 ---
 
@@ -66,23 +73,23 @@
 ```text
 learnhub/
 ├── backend/
-│   ├── src/main/java/com/silverline/task/coursecontent/
-│   │   ├── config/             # App configs (S3, Security, Cors)
-│   │   ├── controller/         # REST API Endpoints
-│   │   ├── model/              # JPA Entities (User, Content, Comment)
-│   │   ├── repository/         # DB Access Layer
-│   │   ├── security/           # JWT Filters & Auth Logic
-│   │   ├── service/            # Business Logic (AI, S3, User Services)
-│   │   └── CourseContentApplication.java
-│   └── Dockerfile              # Backend Container Config
+│   ├── src/main/java/com/silverline/task/coursecontent/
+│   │   ├── config/             # App configs (S3, Security, Cors)
+│   │   ├── controller/         # REST API Endpoints
+│   │   ├── model/              # JPA Entities (User, Content, Comment)
+│   │   ├── repository/         # DB Access Layer
+│   │   ├── security/           # JWT Filters & Auth Logic
+│   │   ├── service/            # Business Logic (AI, S3, User Services)
+│   │   └── CourseContentApplication.java
+│   └── Dockerfile              # Backend Container Config
 │
 └── frontend/
-    ├── src/
-    │   ├── api/                # Axios API calls
-    │   ├── components/         # Reusable UI (Modals, Headers, Upload)
-    │   ├── pages/              # Views (Home, Dashboard, Login)
-    │   └── App.jsx             # Routing & Providers
-    └── tailwind.config.js
+    ├── src/
+    │   ├── api/                # Axios API calls
+    │   ├── components/         # Reusable UI (Modals, Headers, Upload)
+    │   ├── pages/              # Views (Home, Dashboard, Login)
+    │   └── App.jsx             # Routing & Providers
+    └── vercel.json             # Proxy Configuration
 
 
 ```
@@ -91,18 +98,17 @@ Backend
 The backend relies on environment variables for security. You must provide these when running locally or via Docker.
 
 ```
-Variable	            Description
-DB_URL	              JDBC URL (e.g., jdbc:mysql://localhost:3306/db_name)
-DB_USERNAME	          Database username
-DB_PASSWORD	          Database password
-JWT_SECRET	          256-bit encryption key for tokens
-JWT_EXPIRATION	      Token lifetime in ms (e.g., 36000000)
-AWS_ACCESS_KEY	      AWS IAM Access Key
-AWS_SECRET_KEY	      AWS IAM Secret Key
-AWS_REGION	          AWS Region (e.g., us-east-1)
-AWS_BUCKET_NAME      	S3 Bucket Name
-GEMINI_API_KEY	      Google AI Studio API Key
-GOOGLE_CLIENT_ID    	Google Cloud OAuth Client ID
+DB_URL="jdbc:mysql://localhost:3306/db_name"
+DB_USERNAME="root"
+DB_PASSWORD="your_password"
+JWT_SECRET="your_256_bit_secret"
+JWT_EXPIRATION=36000000
+AWS_ACCESS_KEY="your_aws_access_key"
+AWS_SECRET_KEY="your_aws_secret_key"
+AWS_REGION="ap-southeast-1"
+AWS_BUCKET_NAME="your_s3_bucket"
+GEMINI_API_KEY="your_gemini_api_key"
+GOOGLE_CLIENT_ID="your_google_client_id"
 
 ```
 
@@ -114,7 +120,10 @@ Create a .env file in the frontend directory
 VITE_API_BASE_URL=http://localhost:8080/api
 VITE_GOOGLE_CLIENT_ID=your-google-client-id-here
 ```
-
+For Vercel Production: 
+```
+VITE_API_BASE_URL=/api
+```
 
 🚀 Getting Started
 1. Clone the Repository
@@ -148,6 +157,7 @@ docker run -p 8080:8080 \
   learnhub-backend
 ```
 
+
 3. Run Frontend
 Navigate to the frontend folder.
 
@@ -159,12 +169,27 @@ npm run dev
 
 Open http://localhost:5173 in your browser.
 
+
+☁️ Deployment Architecture
+
+```
+This project is deployed using a hybrid cloud strategy:
+
+Frontend: Hosted on Vercel for global edge delivery. It uses a vercel.json proxy to forward API requests to the backend securely.
+
+Backend: Hosted on an AWS EC2 (Ubuntu) instance running Docker.
+
+Database: MySQL 8 running as a separate Docker container on the same EC2 network (learnhub-net).
+```
+
 🔮 Future Roadmap
 [ ] Admin Dashboard: Moderation tools for reported content.
 
 [ ] Video Transcriptions: AI-generated subtitles for uploaded videos.
 
 [ ] Quizzes: Auto-generate quizzes based on uploaded PDFs.
+
+[ ] Payment Integration: Stripe integration for premium courses.
 
 🤝 Contributing
 Contributions are welcome! Please fork the repository and create a Pull Request.
