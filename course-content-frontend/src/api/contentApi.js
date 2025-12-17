@@ -38,8 +38,13 @@ export const changePassword = (data) => api.post("/auth/change-password", data);
 // ✅ FIXED: Correct Endpoint (/my-contents)
 export const fetchMyContents = () => api.get("/content/my-contents");
 
-// Fetch ALL contents (Public Feed)
-export const fetchContents = () => api.get("/content");
+//// Fetch ALL contents (Public Feed)
+//export const fetchContents = () => api.get("/content");
+
+// ✅ FIXED: Added Pagination Parameters
+export const fetchContents = (page = 0) =>
+  api.get(`/content?page=${page}&size=10`);
+
 
 // ✅ FIXED: Removed manual 'Content-Type' header.
 // The browser sets this automatically with the correct boundary for FormData.

@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+// ✅ Import useInfiniteQuery for pagination
+import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import toast from "react-hot-toast";
-import { motion, AnimatePresence } from "framer-motion"; // Added AnimatePresence for smooth filtering
+import { motion, AnimatePresence } from "framer-motion";
 
 // API
 import {
@@ -24,9 +25,10 @@ import ContentSkeleton from "../components/ContentSkeleton";
 // Icons
 import {
   FaFilePdf, FaFileAlt, FaRobot, FaDownload,
-  FaClock, FaFileVideo, FaShareAlt, FaComments, FaHeart, FaRegHeart, FaComment, FaLink, FaSearch
+  FaClock, FaShareAlt, FaComments, FaHeart, FaRegHeart, FaComment, FaLink, FaSearch, FaArrowDown
 } from "react-icons/fa";
 
+// Helper to extract YouTube ID
 const getYoutubeId = (url) => {
   const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
   const match = url.match(regExp);
@@ -39,11 +41,9 @@ function Home() {
   const [searchParams, setSearchParams] = useSearchParams();
   const userEmail = localStorage.getItem("userEmail") || "Guest";
 
-  // --- STATE ---
+  // State
   const [profileOpen, setProfileOpen] = useState(false);
   const [darkMode, setDarkMode] = useState(document.documentElement.classList.contains("dark"));
-
-  // ✨ NEW: Search State
   const [searchTerm, setSearchTerm] = useState("");
 
   const toggleDarkMode = () => {
@@ -59,21 +59,35 @@ function Home() {
     navigate("/");
   };
 
-  // --- DATA FETCHING ---
-  const { data: contents, isLoading, isError } = useQuery({
+  // ✅ PAGINATION DATA FETCHING
+  // This replaces the old useQuery
+  const {
+    data,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+    isLoading,
+    isError
+  } = useInfiniteQuery({
     queryKey: ["contents"],
-    queryFn: async () => {
-      const res = await fetchContents();
-      return res.data;
+    queryFn: async ({ pageParam = 0 }) => {
+      const res = await fetchContents(pageParam);
+      return res.data; // This is the Page object from backend
+    },
+    getNextPageParam: (lastPage) => {
+      // Backend returns 'last' = true when no more pages exist
+      // Backend returns 'number' as current page index
+      return lastPage.last ? undefined : lastPage.number + 1;
     },
   });
 
-  // ✨ NEW: Smart Filtering Logic
-  const filteredContents = contents?.filter((item) => {
-    if (!searchTerm) return true; // Show all if search is empty
-    const lowerTerm = searchTerm.toLowerCase();
+  // Flatten the pages into a single array of items
+  const allContents = data?.pages.flatMap((page) => page.content) || [];
 
-    // Check Title, Description, and Author
+  // Client-side filtering for search (Simple version)
+  const filteredContents = allContents.filter((item) => {
+    if (!searchTerm) return true;
+    const lowerTerm = searchTerm.toLowerCase();
     return (
       item.fileName?.toLowerCase().includes(lowerTerm) ||
       item.description?.toLowerCase().includes(lowerTerm) ||
@@ -81,22 +95,31 @@ function Home() {
     );
   });
 
+  // --- MUTATION (Optimistic Like Update) ---
   const likeMutation = useMutation({
     mutationFn: (id) => toggleLike(id),
     onMutate: async (id) => {
       await queryClient.cancelQueries({ queryKey: ["contents"] });
-      const previousContents = queryClient.getQueryData(["contents"]);
-      queryClient.setQueryData(["contents"], (old) => {
-        return old.map((item) =>
-          item.id === id
-            ? { ...item, likedByCurrentUser: !item.likedByCurrentUser, likeCount: item.likedByCurrentUser ? item.likeCount - 1 : item.likeCount + 1 }
-            : item
-        );
+      const previousData = queryClient.getQueryData(["contents"]);
+
+      queryClient.setQueryData(["contents"], (oldData) => {
+        if (!oldData) return oldData;
+        return {
+          ...oldData,
+          pages: oldData.pages.map((page) => ({
+            ...page,
+            content: page.content.map((item) =>
+              item.id === id
+                ? { ...item, likedByCurrentUser: !item.likedByCurrentUser, likeCount: item.likedByCurrentUser ? item.likeCount - 1 : item.likeCount + 1 }
+                : item
+            ),
+          })),
+        };
       });
-      return { previousContents };
+      return { previousData };
     },
     onError: (err, id, context) => {
-      queryClient.setQueryData(["contents"], context.previousContents);
+      queryClient.setQueryData(["contents"], context.previousData);
       toast.error("Failed to like post");
     },
     onSettled: () => {
@@ -120,6 +143,7 @@ function Home() {
   const [commentsOpen, setCommentsOpen] = useState(false);
   const [commentsContentId, setCommentsContentId] = useState(null);
 
+  // Check URL for openComments param
   useEffect(() => {
     const contentIdToOpen = searchParams.get("openComments");
     if (contentIdToOpen) {
@@ -202,6 +226,7 @@ function Home() {
     finally { setSummaryLoading(false); }
   };
 
+  // --- RENDER HELPERS ---
   const renderContentPreview = (item) => {
     if (item.fileType === "video/youtube") {
         const videoId = getYoutubeId(item.fileUrl);
@@ -263,7 +288,6 @@ function Home() {
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-slate-900 transition-colors duration-300 font-sans">
-      {/* ✨ Updated Header with onSearch Prop */}
       <Header
         darkMode={darkMode}
         setDarkMode={toggleDarkMode}
@@ -279,10 +303,11 @@ function Home() {
           <p className="text-slate-500 dark:text-slate-400">Discover what others are learning and sharing.</p>
         </div>
 
+        {/* LOADING STATE */}
         {isLoading && <ContentSkeleton cards={4} />}
         {isError && <p className="text-center text-red-500">Failed to load feed.</p>}
 
-        {/* ✨ NO RESULTS STATE */}
+        {/* NO RESULTS */}
         {!isLoading && filteredContents?.length === 0 && searchTerm && (
             <div className="text-center py-12">
                 <FaSearch className="text-4xl text-slate-300 mx-auto mb-4" />
@@ -296,7 +321,7 @@ function Home() {
           {!isLoading && filteredContents?.map((item, index) => (
             <motion.div
               key={item.id}
-              layout // ✨ Magic Layout Animation
+              layout
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9 }}
@@ -367,16 +392,42 @@ function Home() {
             </motion.div>
           ))}
           </AnimatePresence>
+
+          {/* ✅ LOAD MORE BUTTON */}
+          {hasNextPage && (
+            <div className="flex justify-center pt-4 pb-8">
+              <button
+                onClick={() => fetchNextPage()}
+                disabled={isFetchingNextPage}
+                className="flex items-center gap-2 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-200 px-6 py-3 rounded-full shadow-sm border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all font-medium disabled:opacity-50"
+              >
+                {isFetchingNextPage ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-slate-500 border-t-transparent rounded-full animate-spin"></div>
+                    Loading...
+                  </>
+                ) : (
+                  <>
+                    Load More <FaArrowDown className="text-xs" />
+                  </>
+                )}
+              </button>
+            </div>
+          )}
+          {!hasNextPage && allContents.length > 0 && (
+             <p className="text-center text-slate-400 text-sm py-4">You've reached the end!</p>
+          )}
         </div>
       </main>
 
       <Footer />
 
-      {/* Modals */}
+      {/* Modals - Same as before */}
       <ChatModal isOpen={chatOpen} onClose={() => setChatOpen(false)} fileId={chatFile.id} fileName={chatFile.name} />
       <CommentsModal isOpen={commentsOpen} onClose={() => setCommentsOpen(false)} contentId={commentsContentId} onCommentAdded={handleCommentAdded} />
       <ProfileModal isOpen={profileOpen} onClose={() => setProfileOpen(false)} userEmail={userEmail} />
 
+      {/* Previews & Summary - Same as before */}
       {previewOpen && (
         <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
              <div className="bg-white w-full max-w-5xl h-[80vh] rounded-lg relative flex flex-col bg-slate-900">

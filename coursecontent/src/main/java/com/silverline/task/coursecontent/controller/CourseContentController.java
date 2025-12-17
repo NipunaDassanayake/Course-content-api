@@ -1,87 +1,100 @@
 package com.silverline.task.coursecontent.controller;
 
 import com.silverline.task.coursecontent.controller.dto.response.CourseContentResponseDTO;
-import com.silverline.task.coursecontent.controller.dto.response.SummaryResponseDTO;
-import com.silverline.task.coursecontent.controller.dto.response.UploadResponseDTO;
 import com.silverline.task.coursecontent.service.CourseContentService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.security.Principal;
-import java.util.List;
+import java.security.Principal; // ✅ Import this
 import java.util.Map;
 
 @RestController
 @RequestMapping("/api/content")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "http://localhost:5173")
+@CrossOrigin(origins = {"http://localhost:5173", "https://course-fronend.vercel.app"})
 public class CourseContentController {
 
     private final CourseContentService courseContentService;
 
-    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<UploadResponseDTO> uploadContent(
-            @RequestParam("file") MultipartFile file,
-            @RequestParam("description") String description,
-            Principal principal) {
-
-        // Construct the base URL for downloads
-        String baseDownloadUrl = "http://localhost:8080";
-        return ResponseEntity.ok(courseContentService.uploadFile(file, description, baseDownloadUrl, principal.getName()));
-    }
-
+    // 1. GET ALL (Feed) - Public, no user needed
     @GetMapping
-    public ResponseEntity<List<CourseContentResponseDTO>> getAllContents() {
-        return ResponseEntity.ok(courseContentService.getAllContents());
+    public ResponseEntity<Page<CourseContentResponseDTO>> getAllContent(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        return ResponseEntity.ok(courseContentService.getAllContent(page, size));
     }
 
-    @GetMapping("/{id}/download")
-    public ResponseEntity<byte[]> downloadContent(@PathVariable Long id) {
-        byte[] data = courseContentService.getFileData(id);
-        var content = courseContentService.getContent(id);
+    // 2. UPLOAD FILE - ✅ Fixed: Uses principal.getName() (Email)
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<?> uploadContent(
+            @RequestParam("file") MultipartFile file,
+            @RequestParam(value = "description", required = false) String description,
+            Principal principal) { // ✅ Spring injects the logged-in user here
 
-        return ResponseEntity.ok()
-                .header("Content-Disposition", "attachment; filename=\"" + content.getFileName() + "\"")
-                .body(data);
+        return ResponseEntity.ok(courseContentService.uploadFile(
+                file,
+                description,
+                "http://localhost:8080",
+                principal.getName() // ✅ Passes Email, not Token
+        ));
     }
 
-    // ✅ FIX: Update Delete to accept Principal (User Identity)
-    @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteContent(@PathVariable Long id, Principal principal) {
-        // Pass the ID AND the User's Email to the service for verification
-        courseContentService.deleteContent(id, principal.getName());
-        return ResponseEntity.noContent().build();
+    // 3. UPLOAD LINK - ✅ Fixed
+    @PostMapping("/link")
+    public ResponseEntity<?> uploadLink(@RequestBody Map<String, String> payload, Principal principal) {
+        return ResponseEntity.ok(courseContentService.addLink(
+                payload.get("url"),
+                payload.get("description"),
+                principal.getName() // ✅ Passes Email
+        ));
     }
 
-    @PostMapping("/{id}/summary")
-    public ResponseEntity<SummaryResponseDTO> generateSummary(@PathVariable Long id) {
-        return ResponseEntity.ok(courseContentService.generateAndSaveSummary(id));
-    }
-
-    @GetMapping("/{id}/summary")
-    public ResponseEntity<SummaryResponseDTO> getSummary(@PathVariable Long id) {
-        var content = courseContentService.getById(id);
-        if (content.getSummary() == null) {
-            return ResponseEntity.ok(new SummaryResponseDTO(id, null, null));
-        }
-        return ResponseEntity.ok(new SummaryResponseDTO(id, content.getSummary(), content.getKeyPoints()));
-    }
-
+    // 4. MY CONTENTS - ✅ Fixed (This is why your dashboard was empty)
     @GetMapping("/my-contents")
-    public ResponseEntity<List<CourseContentResponseDTO>> getMyContents(Principal principal) {
+    public ResponseEntity<?> getMyContents(Principal principal) {
         return ResponseEntity.ok(courseContentService.getMyContents(principal.getName()));
     }
 
-    @PostMapping("/link")
-    public ResponseEntity<UploadResponseDTO> addLink(
-            @RequestBody Map<String, String> payload,
-            Principal principal
-    ) {
-        String url = payload.get("url");
-        String description = payload.get("description");
-        return ResponseEntity.ok(courseContentService.addLink(url, description, principal.getName()));
+    // 5. DOWNLOAD - Public
+    @GetMapping("/{id}/download")
+    public ResponseEntity<?> downloadContent(@PathVariable Long id) {
+        var content = courseContentService.getContent(id);
+        byte[] data = courseContentService.getFileData(id);
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + content.getFileName() + "\"")
+                .contentType(MediaType.parseMediaType(content.getFileType()))
+                .body(data);
+    }
+
+    // 6. DELETE - ✅ Fixed
+    @DeleteMapping("/{id}")
+    public ResponseEntity<?> deleteContent(@PathVariable Long id, Principal principal) {
+        courseContentService.deleteContent(id, principal.getName()); // ✅ Passes Email for ownership check
+        return ResponseEntity.ok("Content deleted successfully");
+    }
+
+    // --- AI ENDPOINTS ---
+
+    @GetMapping("/{id}/summary")
+    public ResponseEntity<?> getSummary(@PathVariable Long id) {
+        var content = courseContentService.getById(id);
+        if (content.getSummary() != null) {
+            return ResponseEntity.ok(Map.of(
+                    "summary", content.getSummary(),
+                    "keyPoints", content.getKeyPoints()
+            ));
+        }
+        return ResponseEntity.ok(Map.of("message", "No summary exists yet."));
+    }
+
+    @PostMapping("/{id}/summary/generate")
+    public ResponseEntity<?> generateSummary(@PathVariable Long id) {
+        return ResponseEntity.ok(courseContentService.generateAndSaveSummary(id));
     }
 }
