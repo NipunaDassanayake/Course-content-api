@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import toast from "react-hot-toast";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion"; // Added AnimatePresence for smooth filtering
 
 // API
 import {
@@ -24,10 +24,9 @@ import ContentSkeleton from "../components/ContentSkeleton";
 // Icons
 import {
   FaFilePdf, FaFileAlt, FaRobot, FaDownload,
-  FaClock, FaFileVideo, FaShareAlt, FaComments, FaHeart, FaRegHeart, FaComment, FaLink
+  FaClock, FaFileVideo, FaShareAlt, FaComments, FaHeart, FaRegHeart, FaComment, FaLink, FaSearch
 } from "react-icons/fa";
 
-// Helper to extract YouTube ID
 const getYoutubeId = (url) => {
   const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
   const match = url.match(regExp);
@@ -40,9 +39,12 @@ function Home() {
   const [searchParams, setSearchParams] = useSearchParams();
   const userEmail = localStorage.getItem("userEmail") || "Guest";
 
-  // State
+  // --- STATE ---
   const [profileOpen, setProfileOpen] = useState(false);
   const [darkMode, setDarkMode] = useState(document.documentElement.classList.contains("dark"));
+
+  // ✨ NEW: Search State
+  const [searchTerm, setSearchTerm] = useState("");
 
   const toggleDarkMode = () => {
     setDarkMode(!darkMode);
@@ -66,7 +68,19 @@ function Home() {
     },
   });
 
-  // OPTIMISTIC LIKE MUTATION
+  // ✨ NEW: Smart Filtering Logic
+  const filteredContents = contents?.filter((item) => {
+    if (!searchTerm) return true; // Show all if search is empty
+    const lowerTerm = searchTerm.toLowerCase();
+
+    // Check Title, Description, and Author
+    return (
+      item.fileName?.toLowerCase().includes(lowerTerm) ||
+      item.description?.toLowerCase().includes(lowerTerm) ||
+      item.uploadedBy?.toLowerCase().includes(lowerTerm)
+    );
+  });
+
   const likeMutation = useMutation({
     mutationFn: (id) => toggleLike(id),
     onMutate: async (id) => {
@@ -249,12 +263,14 @@ function Home() {
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-slate-900 transition-colors duration-300 font-sans">
+      {/* ✨ Updated Header with onSearch Prop */}
       <Header
         darkMode={darkMode}
         setDarkMode={toggleDarkMode}
         onLogout={handleLogout}
         userEmail={userEmail}
         onOpenProfile={() => setProfileOpen(true)}
+        onSearch={setSearchTerm}
       />
 
       <main className="flex-1 max-w-3xl mx-auto w-full px-4 py-8">
@@ -266,15 +282,28 @@ function Home() {
         {isLoading && <ContentSkeleton cards={4} />}
         {isError && <p className="text-center text-red-500">Failed to load feed.</p>}
 
+        {/* ✨ NO RESULTS STATE */}
+        {!isLoading && filteredContents?.length === 0 && searchTerm && (
+            <div className="text-center py-12">
+                <FaSearch className="text-4xl text-slate-300 mx-auto mb-4" />
+                <p className="text-slate-500">No results found for "{searchTerm}"</p>
+                <button onClick={() => setSearchTerm("")} className="text-indigo-600 font-bold mt-2 hover:underline">Clear Search</button>
+            </div>
+        )}
+
         <div className="space-y-8">
-          {!isLoading && contents?.map((item, index) => (
+          <AnimatePresence>
+          {!isLoading && filteredContents?.map((item, index) => (
             <motion.div
               key={item.id}
+              layout // ✨ Magic Layout Animation
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3, delay: index * 0.1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              transition={{ duration: 0.3 }}
               className="bg-white dark:bg-slate-950 rounded-2xl p-6 shadow-sm border border-slate-200 dark:border-slate-800 hover:shadow-md transition-shadow"
             >
+              {/* Header */}
               <div className="flex items-center gap-3 mb-4">
                 {item.uploaderImage ? (
                   <img src={item.uploaderImage} alt="Uploader" referrerPolicy="no-referrer" className="w-10 h-10 rounded-full border border-slate-200 dark:border-slate-700 object-cover"/>
@@ -299,6 +328,7 @@ function Home() {
 
               {renderContentPreview(item)}
 
+              {/* Actions */}
               <div className="flex items-center justify-between border-t border-slate-100 dark:border-slate-800 pt-4">
                  <div className="flex gap-4">
                     <button onClick={() => handleLike(item.id)} className={`flex items-center gap-1.5 text-sm font-medium transition-transform active:scale-125 duration-200 ${item.likedByCurrentUser ? "text-red-500" : "text-slate-500 hover:text-red-500"}`}>
@@ -336,11 +366,13 @@ function Home() {
               </div>
             </motion.div>
           ))}
+          </AnimatePresence>
         </div>
       </main>
 
       <Footer />
 
+      {/* Modals */}
       <ChatModal isOpen={chatOpen} onClose={() => setChatOpen(false)} fileId={chatFile.id} fileName={chatFile.name} />
       <CommentsModal isOpen={commentsOpen} onClose={() => setCommentsOpen(false)} contentId={commentsContentId} onCommentAdded={handleCommentAdded} />
       <ProfileModal isOpen={profileOpen} onClose={() => setProfileOpen(false)} userEmail={userEmail} />
