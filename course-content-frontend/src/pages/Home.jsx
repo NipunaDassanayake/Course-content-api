@@ -1,5 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import toast from "react-hot-toast";
+import { motion } from "framer-motion";
+
+// API
 import {
   fetchContents,
   downloadFile,
@@ -7,18 +12,20 @@ import {
   generateSummary,
   toggleLike
 } from "../api/contentApi";
+
+// Components
 import Header from "../components/Header";
 import Footer from "../components/Footer";
 import ProfileModal from "../components/ProfileModal";
 import ChatModal from "../components/ChatModal";
 import CommentsModal from "../components/CommentsModal";
-import toast from "react-hot-toast"; // ✅ Import Toast
+import ContentSkeleton from "../components/ContentSkeleton";
+
+// Icons
 import {
   FaFilePdf, FaFileAlt, FaRobot, FaDownload,
-  FaEye, FaClock, FaFileVideo, FaFileImage,
-  FaShareAlt, FaComments, FaHeart, FaRegHeart, FaComment, FaLink
+  FaClock, FaFileVideo, FaShareAlt, FaComments, FaHeart, FaRegHeart, FaComment, FaLink
 } from "react-icons/fa";
-import { useNavigate, useSearchParams } from "react-router-dom";
 
 // Helper to extract YouTube ID
 const getYoutubeId = (url) => {
@@ -59,11 +66,27 @@ function Home() {
     },
   });
 
-  // Like Mutation
+  // OPTIMISTIC LIKE MUTATION
   const likeMutation = useMutation({
     mutationFn: (id) => toggleLike(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries(["contents"]);
+    onMutate: async (id) => {
+      await queryClient.cancelQueries({ queryKey: ["contents"] });
+      const previousContents = queryClient.getQueryData(["contents"]);
+      queryClient.setQueryData(["contents"], (old) => {
+        return old.map((item) =>
+          item.id === id
+            ? { ...item, likedByCurrentUser: !item.likedByCurrentUser, likeCount: item.likedByCurrentUser ? item.likeCount - 1 : item.likeCount + 1 }
+            : item
+        );
+      });
+      return { previousContents };
+    },
+    onError: (err, id, context) => {
+      queryClient.setQueryData(["contents"], context.previousContents);
+      toast.error("Failed to like post");
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["contents"] });
     },
   });
 
@@ -83,7 +106,6 @@ function Home() {
   const [commentsOpen, setCommentsOpen] = useState(false);
   const [commentsContentId, setCommentsContentId] = useState(null);
 
-  // Effect: Open Comments from Notification Link
   useEffect(() => {
     const contentIdToOpen = searchParams.get("openComments");
     if (contentIdToOpen) {
@@ -101,7 +123,7 @@ function Home() {
 
   const handleView = (item) => {
     if (item.fileType === "video/youtube" || item.fileType === "resource/link") {
-        window.open(item.fileUrl, "_blank"); // Open links in new tab
+        window.open(item.fileUrl, "_blank");
         return;
     }
     const type = item.fileType.includes("pdf") ? "pdf" : item.fileType.includes("image") ? "image" : item.fileType.includes("video") ? "video" : "other";
@@ -112,9 +134,8 @@ function Home() {
   };
 
   const handleDownload = async (item) => {
-    // Cannot download external links
     if(item.fileType === "resource/link" || item.fileType === "video/youtube") {
-        toast.error("Cannot download external links."); // ✅ Toast Error
+        toast.error("Cannot download external links.");
         return;
     }
     const toastId = toast.loading("Downloading...");
@@ -127,8 +148,8 @@ function Home() {
         document.body.appendChild(link);
         link.click();
         link.remove();
-        toast.success("Download complete!", { id: toastId }); // ✅ Toast Success
-    } catch(e) { toast.error("Download failed", { id: toastId }); } // ✅ Toast Error
+        toast.success("Download complete!", { id: toastId });
+    } catch(e) { toast.error("Download failed", { id: toastId }); }
   };
 
   const handleShare = async (item) => {
@@ -142,14 +163,14 @@ function Home() {
     } else {
       try {
           await navigator.clipboard.writeText(item.fileUrl);
-          toast.success("Link copied to clipboard! 📋"); // ✅ Toast Success
-      } catch (err) { toast.error("Failed to copy link."); } // ✅ Toast Error
+          toast.success("Link copied to clipboard! 📋");
+      } catch (err) { toast.error("Failed to copy link."); }
     }
   };
 
   const handleSummary = async (item) => {
     if(item.fileType === "resource/link" || item.fileType === "video/youtube") {
-        toast.error("AI Summary not supported for external links yet."); // ✅ Toast Error
+        toast.error("AI Summary not supported for external links yet.");
         return;
     }
     setSummaryOpen(true);
@@ -159,25 +180,21 @@ function Home() {
         let res = await getSummary(item.id);
         if (!res.data.summary) res = await generateSummary(item.id);
         setSummaryData(res.data);
-        toast.success("Summary generated!"); // ✅ Toast Success
+        toast.success("Summary generated!");
     } catch(e) {
-        toast.error("Summary failed"); // ✅ Toast Error
+        toast.error("Summary failed");
         setSummaryOpen(false);
     }
     finally { setSummaryLoading(false); }
   };
 
-  // Content Preview Renderer
   const renderContentPreview = (item) => {
-
-    // 1. YouTube Video (Embedded Player)
     if (item.fileType === "video/youtube") {
         const videoId = getYoutubeId(item.fileUrl);
         return (
             <div className="w-full aspect-video bg-black rounded-xl overflow-hidden mb-4 border border-slate-200 dark:border-slate-800">
                 <iframe
-                    width="100%"
-                    height="100%"
+                    width="100%" height="100%"
                     src={`https://www.youtube.com/embed/${videoId}`}
                     title={item.fileName}
                     frameBorder="0"
@@ -187,15 +204,11 @@ function Home() {
             </div>
         );
     }
-
-    // 2. Generic Link Card
     if (item.fileType === "resource/link") {
         return (
             <a href={item.fileUrl} target="_blank" rel="noopener noreferrer" className="block mb-4 group">
                 <div className="flex items-center gap-4 bg-sky-50 dark:bg-sky-900/20 p-4 rounded-xl border border-sky-100 dark:border-slate-800 group-hover:bg-sky-100 dark:group-hover:bg-sky-900/30 transition-colors">
-                    <div className="bg-sky-500 text-white p-3 rounded-full shrink-0">
-                        <FaLink className="text-xl"/>
-                    </div>
+                    <div className="bg-sky-500 text-white p-3 rounded-full shrink-0"><FaLink className="text-xl"/></div>
                     <div className="overflow-hidden">
                         <h4 className="font-bold text-sky-700 dark:text-sky-400 truncate text-sm">{item.fileName}</h4>
                         <p className="text-xs text-sky-600/70 dark:text-sky-500 truncate">{item.fileUrl}</p>
@@ -204,28 +217,16 @@ function Home() {
             </a>
         );
     }
-
-    // 3. Image
     if (item.fileType?.startsWith("image/")) {
       return (
-        <div
-          className="w-full h-64 bg-slate-100 dark:bg-slate-900 rounded-xl overflow-hidden cursor-pointer border border-slate-200 dark:border-slate-800 mb-4 group relative"
-          onClick={() => handleView(item)}
-        >
-          <img
-            src={item.fileUrl}
-            alt={item.fileName}
-            referrerPolicy="no-referrer"
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-          />
+        <div className="w-full h-64 bg-slate-100 dark:bg-slate-900 rounded-xl overflow-hidden cursor-pointer border border-slate-200 dark:border-slate-800 mb-4 group relative" onClick={() => handleView(item)}>
+          <img src={item.fileUrl} alt={item.fileName} referrerPolicy="no-referrer" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"/>
           <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
              <span className="bg-black/50 text-white px-3 py-1 rounded-full text-sm backdrop-blur-sm">View Image</span>
           </div>
         </div>
       );
     }
-
-    // 4. Native Video Upload
     if (item.fileType?.startsWith("video/")) {
       return (
         <div className="w-full bg-black rounded-xl overflow-hidden mb-4 border border-slate-200 dark:border-slate-800 relative group">
@@ -233,8 +234,6 @@ function Home() {
         </div>
       );
     }
-
-    // 5. Default File (PDF/Doc)
     return (
       <div className="flex gap-4 items-start bg-slate-50 dark:bg-slate-900/50 p-4 rounded-xl border border-slate-100 dark:border-slate-800 mb-4 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-900 transition-colors" onClick={() => handleView(item)}>
         <div className="shrink-0">
@@ -264,66 +263,50 @@ function Home() {
           <p className="text-slate-500 dark:text-slate-400">Discover what others are learning and sharing.</p>
         </div>
 
-        {isLoading && <p className="text-center text-slate-500">Loading feed...</p>}
+        {isLoading && <ContentSkeleton cards={4} />}
         {isError && <p className="text-center text-red-500">Failed to load feed.</p>}
 
         <div className="space-y-8">
-          {!isLoading && contents?.map((item) => (
-            <div key={item.id} className="bg-white dark:bg-slate-950 rounded-2xl p-6 shadow-sm border border-slate-200 dark:border-slate-800 hover:shadow-md transition-shadow">
-
-              {/* Header */}
+          {!isLoading && contents?.map((item, index) => (
+            <motion.div
+              key={item.id}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, delay: index * 0.1 }}
+              className="bg-white dark:bg-slate-950 rounded-2xl p-6 shadow-sm border border-slate-200 dark:border-slate-800 hover:shadow-md transition-shadow"
+            >
               <div className="flex items-center gap-3 mb-4">
                 {item.uploaderImage ? (
-                  <img
-                    src={item.uploaderImage}
-                    alt="Uploader"
-                    referrerPolicy="no-referrer"
-                    className="w-10 h-10 rounded-full border border-slate-200 dark:border-slate-700 object-cover"
-                  />
+                  <img src={item.uploaderImage} alt="Uploader" referrerPolicy="no-referrer" className="w-10 h-10 rounded-full border border-slate-200 dark:border-slate-700 object-cover"/>
                 ) : (
                   <div className="w-10 h-10 rounded-full bg-gradient-to-br from-sky-400 to-indigo-500 flex items-center justify-center text-white font-bold text-lg shadow-sm uppercase">
                      {item.uploadedBy ? item.uploadedBy.charAt(0) : "?"}
                   </div>
                 )}
                 <div>
-                  <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100">
-                     {item.uploadedBy || "Anonymous User"}
-                  </h3>
+                  <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100">{item.uploadedBy || "Anonymous User"}</h3>
                   <div className="flex items-center gap-1 text-xs text-slate-500">
                     <FaClock className="text-[10px]" />
                     <span>{new Date(item.uploadDate).toLocaleDateString()}</span> •
-                    {/* Hide size for links */}
                     {item.fileSize > 0 && <span>{(item.fileSize / 1024).toFixed(0)} KB</span>}
                   </div>
                 </div>
               </div>
 
-              {/* Description */}
               {item.description && (
-                <p className="mb-4 text-sm text-slate-700 dark:text-slate-300 leading-relaxed whitespace-pre-wrap">
-                  {item.description}
-                </p>
+                <p className="mb-4 text-sm text-slate-700 dark:text-slate-300 leading-relaxed whitespace-pre-wrap">{item.description}</p>
               )}
 
-              {/* Preview */}
               {renderContentPreview(item)}
 
-              {/* Actions */}
               <div className="flex items-center justify-between border-t border-slate-100 dark:border-slate-800 pt-4">
-
                  <div className="flex gap-4">
-                    <button
-                      onClick={() => handleLike(item.id)}
-                      className={`flex items-center gap-1.5 text-sm font-medium transition-colors ${item.likedByCurrentUser ? "text-red-500" : "text-slate-500 hover:text-red-500"}`}
-                    >
-                        {item.likedByCurrentUser ? <FaHeart /> : <FaRegHeart />}
+                    <button onClick={() => handleLike(item.id)} className={`flex items-center gap-1.5 text-sm font-medium transition-transform active:scale-125 duration-200 ${item.likedByCurrentUser ? "text-red-500" : "text-slate-500 hover:text-red-500"}`}>
+                        {item.likedByCurrentUser ? <FaHeart className="animate-pulse-once" /> : <FaRegHeart />}
                         <span>{item.likeCount || 0}</span>
                     </button>
 
-                    <button
-                      onClick={() => handleComments(item.id)}
-                      className="flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-sky-600 transition-colors"
-                    >
+                    <button onClick={() => handleComments(item.id)} className="flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-sky-600 transition-colors">
                         <FaComment />
                         <span>{item.commentCount || 0}</span>
                     </button>
@@ -344,7 +327,6 @@ function Home() {
                       <FaShareAlt />
                     </button>
 
-                    {/* Hide download button for links */}
                     {item.fileSize > 0 && (
                         <button onClick={() => handleDownload(item)} className="p-2 rounded-full text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-colors" title="Download">
                         <FaDownload />
@@ -352,7 +334,7 @@ function Home() {
                     )}
                  </div>
               </div>
-            </div>
+            </motion.div>
           ))}
         </div>
       </main>
