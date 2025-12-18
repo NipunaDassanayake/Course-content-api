@@ -10,7 +10,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.security.Principal; // ✅ Import this
+import java.security.Principal;
 import java.util.Map;
 
 @RestController
@@ -21,74 +21,56 @@ public class CourseContentController {
 
     private final CourseContentService courseContentService;
 
-    // 1. GET ALL (Feed) - Public, no user needed
+    // ✅ FIXED: Pass 'principal' to check for Likes
     @GetMapping
     public ResponseEntity<Page<CourseContentResponseDTO>> getAllContent(
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size) {
-        return ResponseEntity.ok(courseContentService.getAllContent(page, size));
+            @RequestParam(defaultValue = "10") int size,
+            Principal principal) {
+
+        String email = (principal != null) ? principal.getName() : null;
+        return ResponseEntity.ok(courseContentService.getAllContent(page, size, email));
     }
 
-    // 2. UPLOAD FILE - ✅ Fixed: Uses principal.getName() (Email)
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<?> uploadContent(
             @RequestParam("file") MultipartFile file,
             @RequestParam(value = "description", required = false) String description,
-            Principal principal) { // ✅ Spring injects the logged-in user here
-
-        return ResponseEntity.ok(courseContentService.uploadFile(
-                file,
-                description,
-                "http://localhost:8080",
-                principal.getName() // ✅ Passes Email, not Token
-        ));
+            Principal principal) {
+        return ResponseEntity.ok(courseContentService.uploadFile(file, description, "http://localhost:8080", principal.getName()));
     }
 
-    // 3. UPLOAD LINK - ✅ Fixed
     @PostMapping("/link")
     public ResponseEntity<?> uploadLink(@RequestBody Map<String, String> payload, Principal principal) {
-        return ResponseEntity.ok(courseContentService.addLink(
-                payload.get("url"),
-                payload.get("description"),
-                principal.getName() // ✅ Passes Email
-        ));
+        return ResponseEntity.ok(courseContentService.addLink(payload.get("url"), payload.get("description"), principal.getName()));
     }
 
-    // 4. MY CONTENTS - ✅ Fixed (This is why your dashboard was empty)
     @GetMapping("/my-contents")
     public ResponseEntity<?> getMyContents(Principal principal) {
         return ResponseEntity.ok(courseContentService.getMyContents(principal.getName()));
     }
 
-    // 5. DOWNLOAD - Public
     @GetMapping("/{id}/download")
     public ResponseEntity<?> downloadContent(@PathVariable Long id) {
         var content = courseContentService.getContent(id);
         byte[] data = courseContentService.getFileData(id);
-
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + content.getFileName() + "\"")
                 .contentType(MediaType.parseMediaType(content.getFileType()))
                 .body(data);
     }
 
-    // 6. DELETE - ✅ Fixed
     @DeleteMapping("/{id}")
     public ResponseEntity<?> deleteContent(@PathVariable Long id, Principal principal) {
-        courseContentService.deleteContent(id, principal.getName()); // ✅ Passes Email for ownership check
+        courseContentService.deleteContent(id, principal.getName());
         return ResponseEntity.ok("Content deleted successfully");
     }
-
-    // --- AI ENDPOINTS ---
 
     @GetMapping("/{id}/summary")
     public ResponseEntity<?> getSummary(@PathVariable Long id) {
         var content = courseContentService.getById(id);
         if (content.getSummary() != null) {
-            return ResponseEntity.ok(Map.of(
-                    "summary", content.getSummary(),
-                    "keyPoints", content.getKeyPoints()
-            ));
+            return ResponseEntity.ok(Map.of("summary", content.getSummary(), "keyPoints", content.getKeyPoints()));
         }
         return ResponseEntity.ok(Map.of("message", "No summary exists yet."));
     }

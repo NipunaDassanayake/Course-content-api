@@ -15,23 +15,27 @@ import com.silverline.task.coursecontent.service.FileStorageService;
 import com.silverline.task.coursecontent.service.FileTextExtractor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.data.domain.Page;        // ✅ Import
-import org.springframework.data.domain.PageRequest; // ✅ Import
-import org.springframework.data.domain.Pageable;    // ✅ Import
-import org.springframework.data.domain.Sort;        // ✅ Import
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl; // ✅ Import
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 public class CourseContentServiceImpl implements CourseContentService {
 
     private static final Logger log = LoggerFactory.getLogger(CourseContentServiceImpl.class);
-
-    // Limits
     private static final List<String> ALLOWED_TYPES = List.of("application/pdf", "video/mp4", "image/jpeg", "image/png");
     private static final long MAX_SIZE_BYTES = 100 * 1024 * 1024;
 
@@ -53,25 +57,71 @@ public class CourseContentServiceImpl implements CourseContentService {
         this.userRepository = userRepository;
     }
 
-    // ✅ IMPLEMENTATION: Pagination
+    // ✅ MASTER METHOD: Orchestrates Caching + Personalization
     @Override
     @Transactional(readOnly = true)
-    public Page<CourseContentResponseDTO> getAllContent(int page, int size) {
-        // 1. Create Pageable object (Page number, Items per page, Sort by Date Descending)
-        Pageable pageable = PageRequest.of(page, size, Sort.by("uploadDate").descending());
+    public Page<CourseContentResponseDTO> getAllContent(int page, int size, String userEmail) {
 
-        // 2. Fetch Page from Repository
-        Page<CourseContent> contentPage = repository.findAll(pageable);
+        // 1. Get Generic Page from Redis (Fast, contains NO user specific like status)
+        Page<CourseContentResponseDTO> cachedPage = fetchCachedContent(page, size);
 
-        // 3. Convert Entity Page to DTO Page
-        return contentPage.map(this::toDto);
+        // 2. If user is Guest, return as is
+        if (userEmail == null || userEmail.equals("anonymousUser")) {
+            return cachedPage;
+        }
+
+        // 3. If User Logged In -> Personalize the data
+        User currentUser = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+        // We must clone the list because the cached list is immutable/shared
+        List<CourseContentResponseDTO> personalizedList = cachedPage.getContent().stream()
+                .map(dto -> {
+                    // Create a copy to modify
+                    CourseContentResponseDTO copy = new CourseContentResponseDTO();
+                    copy.setId(dto.getId());
+                    copy.setFileName(dto.getFileName());
+                    copy.setDescription(dto.getDescription());
+                    copy.setFileType(dto.getFileType());
+                    copy.setFileSize(dto.getFileSize());
+                    copy.setUploadDate(dto.getUploadDate());
+                    copy.setFileUrl(dto.getFileUrl());
+                    copy.setUploadedBy(dto.getUploadedBy());
+                    copy.setUploaderImage(dto.getUploaderImage());
+                    copy.setLikeCount(dto.getLikeCount());
+                    copy.setCommentCount(dto.getCommentCount());
+
+                    // ✅ CHECK DATABASE: Did this user like this content?
+                    // Note: Ideally we fetch all likes in one query for performance,
+                    // but for now, checking per item is safer logic-wise.
+                    CourseContent contentEntity = repository.findById(dto.getId()).orElse(null);
+                    if(contentEntity != null && contentEntity.getLikes().contains(currentUser)) {
+                        copy.setLikedByCurrentUser(true);
+                    } else {
+                        copy.setLikedByCurrentUser(false);
+                    }
+
+                    return copy;
+                }).collect(Collectors.toList());
+
+        return new PageImpl<>(personalizedList, cachedPage.getPageable(), cachedPage.getTotalElements());
     }
 
-    // --- KEEP ALL OTHER METHODS THE SAME AS BEFORE ---
+    // ✅ CACHED METHOD (Internal Helper)
+    // This only returns the raw data. No "isLiked" logic here.
+    @Cacheable(value = "contentFeed", key = "#page + '-' + #size")
+    public Page<CourseContentResponseDTO> fetchCachedContent(int page, int size) {
+        log.info("Fetching content from DB (Cache Miss) for page {} size {}", page, size);
+        Pageable pageable = PageRequest.of(page, size, Sort.by("uploadDate").descending());
 
+        return repository.findAll(pageable).map(this::toDto);
+    }
+
+    // ✅ CLEAR CACHE (Upload)
     @Override
+    @CacheEvict(value = "contentFeed", allEntries = true)
     public UploadResponseDTO uploadFile(MultipartFile file, String description, String baseDownloadUrl, String userEmail) {
-        // ... (Keep existing upload logic) ...
+        // ... (Keep same logic as before) ...
         if (file.isEmpty()) throw new FileStorageException("File is empty");
         if (!ALLOWED_TYPES.contains(file.getContentType())) throw new FileStorageException("Invalid file type");
         if (file.getSize() > MAX_SIZE_BYTES) throw new FileStorageException("File is too large");
@@ -79,7 +129,7 @@ public class CourseContentServiceImpl implements CourseContentService {
         try {
             String key = fileStorageService.storeFile(file);
             User user = userRepository.findByEmail(userEmail)
-                    .orElseThrow(() -> new ResourceNotFoundException("User not found: " + userEmail));
+                    .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
             CourseContent entity = new CourseContent();
             entity.setFileName(file.getOriginalFilename());
@@ -104,9 +154,10 @@ public class CourseContentServiceImpl implements CourseContentService {
         }
     }
 
+    // ✅ CLEAR CACHE (Add Link)
     @Override
+    @CacheEvict(value = "contentFeed", allEntries = true)
     public UploadResponseDTO addLink(String url, String description, String userEmail) {
-        // ... (Keep existing link logic) ...
         User user = userRepository.findByEmail(userEmail)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
@@ -133,27 +184,11 @@ public class CourseContentServiceImpl implements CourseContentService {
         return dto;
     }
 
+    // ✅ CLEAR CACHE (Delete)
     @Override
-    public List<CourseContentResponseDTO> getMyContents(String userEmail) {
-        return repository.findAllByUserEmail(userEmail).stream().map(this::toDto).toList();
-    }
-
-    @Override
-    public CourseContentResponseDTO getContent(Long id) {
-        CourseContent content = repository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Content not found: " + id));
-        return toDto(content);
-    }
-
-    @Override
-    public byte[] getFileData(Long id) {
-        CourseContent content = repository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Content not found: " + id));
-        if (content.getFileUrl().startsWith("http")) throw new FileStorageException("Cannot download external link");
-        return fileStorageService.readFile(content.getFileUrl());
-    }
-
-    @Override
+    @CacheEvict(value = "contentFeed", allEntries = true)
     public void deleteContent(Long id, String userEmail) {
-        CourseContent content = repository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Content not found: " + id));
+        CourseContent content = repository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Content not found"));
         if (userEmail != null && !content.getUser().getEmail().equals(userEmail)) {
             throw new RuntimeException("Unauthorized");
         }
@@ -171,6 +206,25 @@ public class CourseContentServiceImpl implements CourseContentService {
     @Override
     public void deleteContent(Long id) {
         deleteContent(id, null);
+    }
+
+    // ... (Keep getMyContents, getContent, getFileData, AI methods same as before) ...
+    @Override
+    public List<CourseContentResponseDTO> getMyContents(String userEmail) {
+        return repository.findAllByUserEmail(userEmail).stream().map(this::toDto).toList();
+    }
+
+    @Override
+    public CourseContentResponseDTO getContent(Long id) {
+        CourseContent content = repository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Content not found: " + id));
+        return toDto(content);
+    }
+
+    @Override
+    public byte[] getFileData(Long id) {
+        CourseContent content = repository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Content not found: " + id));
+        if (content.getFileUrl().startsWith("http")) throw new FileStorageException("Cannot download external link");
+        return fileStorageService.readFile(content.getFileUrl());
     }
 
     @Override
@@ -195,7 +249,6 @@ public class CourseContentServiceImpl implements CourseContentService {
         return repository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Content not found"));
     }
 
-    // Helper to convert Entity to DTO
     private CourseContentResponseDTO toDto(CourseContent entity) {
         CourseContentResponseDTO dto = new CourseContentResponseDTO();
         dto.setId(entity.getId());
@@ -213,6 +266,8 @@ public class CourseContentServiceImpl implements CourseContentService {
 
         dto.setLikeCount(entity.getLikes().size());
         dto.setCommentCount(entity.getComments().size());
+        // ⚠️ Intentionally NOT setting likedByCurrentUser here
+        // Because this DTO goes into the shared cache.
 
         if (entity.getUser() != null) {
             String name = (entity.getUser().getName() != null) ? entity.getUser().getName() : entity.getUser().getEmail();

@@ -1,10 +1,15 @@
 package com.silverline.task.coursecontent.controller.dto.response;
 
 import lombok.Data;
+import java.io.Serializable; // ✅ Import
 import java.time.LocalDateTime;
 
 @Data
-public class CourseContentResponseDTO {
+// ✅ Implements Serializable is REQUIRED for Redis
+public class CourseContentResponseDTO implements Serializable {
+
+    private static final long serialVersionUID = 1L; // ✅ Version Control
+
     private Long id;
     private String fileName;
     private String description;
@@ -16,5 +21,5 @@ public class CourseContentResponseDTO {
     private String uploaderImage;
     private int likeCount;
     private int commentCount;
-    private boolean likedByCurrentUser;// ✅ New Field for Profile Picture
+    private boolean likedByCurrentUser;
 }
