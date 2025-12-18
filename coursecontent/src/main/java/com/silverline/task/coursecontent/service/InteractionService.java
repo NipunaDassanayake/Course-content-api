@@ -1,13 +1,13 @@
 package com.silverline.task.coursecontent.service;
 
-import com.silverline.task.coursecontent.controller.dto.response.CommentDTO;
+import com.silverline.task.coursecontent.controller.dto.response.CommentResponseDTO;
 import java.util.List;
 
 public interface InteractionService {
 
     void toggleLike(Long contentId, String userEmail);
 
-    CommentDTO addComment(Long contentId, String text, String userEmail);
+    CommentResponseDTO addComment(Long contentId, String text, String userEmail);
 
-    List<CommentDTO> getComments(Long contentId);
+    List<CommentResponseDTO> getComments(Long contentId);
 }

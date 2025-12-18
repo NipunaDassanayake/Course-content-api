@@ -3,7 +3,7 @@ import lombok.Data;
 import java.time.LocalDateTime;
 
 @Data
-public class CommentDTO {
+public class CommentResponseDTO {
     private Long id;
     private String text;
     private String username;
