@@ -222,6 +222,7 @@ All backend components communicate via a private Docker bridge network (learnhub
 Contributions are welcome! Please fork the repository and create a Pull Request.
 
 <img width="1907" height="1066" alt="image" src="https://github.com/user-attachments/assets/15e5c480-58b2-4dec-bf03-ff27909bcf1e" />
+<img width="1919" height="1079" alt="image" src="https://github.com/user-attachments/assets/ee5b45ef-8d1a-4734-bf7e-f1ec032be7f1" />
 <img width="1917" height="1071" alt="image" src="https://github.com/user-attachments/assets/320984c7-ed1f-49c2-a831-adf57a8d9c5d" />
 <img width="1897" height="1079" alt="image" src="https://github.com/user-attachments/assets/b67ce48c-de38-4679-b87b-b224b72badd5" />
 <img width="1889" height="1071" alt="image" src="https://github.com/user-attachments/assets/4f39fe02-e734-4366-9308-7416ccad111a" />
