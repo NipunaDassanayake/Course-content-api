@@ -31,8 +31,7 @@ api.interceptors.request.use((config) => {
 export const login = (data) => api.post("/auth/login", data);
 export const register = (data) => api.post("/auth/register", data);
 export const googleLogin = (token) => api.post("/auth/google", { token });
-export const changePassword = (data) => api.post("/auth/change-password", data); // Changed from PUT to POST to match backend common practices, check your Controller if it expects PUT.
-
+export const changePassword = (data) => api.put("/users/password", data);
 // --- CONTENT MANAGEMENT ---
 
 // ✅ FIXED: Correct Endpoint (/my-contents)
