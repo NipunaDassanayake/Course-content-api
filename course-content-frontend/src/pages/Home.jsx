@@ -138,22 +138,45 @@ function Home() {
   };
 
   const handleDownload = async (item) => {
-    if(item.fileType === "resource/link" || item.fileType === "video/youtube") {
+    // Prevent downloading links/videos which don't have files on the server
+    if (item.fileType === "resource/link" || item.fileType === "video/youtube") {
         toast.error("Cannot download external links.");
         return;
     }
+
     const toastId = toast.loading("Downloading...");
+
     try {
-        const res = await downloadFile(item.id);
-        const url = window.URL.createObjectURL(new Blob([res.data]));
+        // 1. Request the file using Axios (This attaches the JWT Token automatically)
+        const response = await downloadFile(item.id);
+
+        // 2. Convert the response data (Blob) into a temporary URL
+        const url = window.URL.createObjectURL(new Blob([response.data]));
+
+        // 3. Create a temporary hidden link to trigger the "Save As" dialog
         const link = document.createElement("a");
         link.href = url;
-        link.setAttribute("download", item.fileName);
+        link.setAttribute("download", item.fileName); // Force the filename
         document.body.appendChild(link);
+
+        // 4. Click it programmatically
         link.click();
-        link.remove();
+
+        // 5. Clean up
+        link.parentNode.removeChild(link);
+        window.URL.revokeObjectURL(url);
+
         toast.success("Download complete!", { id: toastId });
-    } catch(e) { toast.error("Download failed", { id: toastId }); }
+
+    } catch (error) {
+        console.error("Download error:", error);
+
+        if (error.response && error.response.status === 403) {
+            toast.error("Access Denied. Please log in again.", { id: toastId });
+        } else {
+            toast.error("Download failed.", { id: toastId });
+        }
+    }
   };
 
   const handleShare = async (item) => {

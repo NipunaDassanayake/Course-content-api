@@ -55,7 +55,7 @@ const ContentCard = ({
             src={`https://www.youtube.com/embed/${videoId}`}
             title={item.fileName}
             frameBorder="0"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; compute-pressure"
             allowFullScreen
           ></iframe>
         </div>

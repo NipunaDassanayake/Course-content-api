@@ -18,7 +18,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl; // ✅ Import
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -27,17 +27,26 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
 public class CourseContentServiceImpl implements CourseContentService {
 
     private static final Logger log = LoggerFactory.getLogger(CourseContentServiceImpl.class);
-    private static final List<String> ALLOWED_TYPES = List.of("application/pdf", "video/mp4", "image/jpeg", "image/png");
-    private static final long MAX_SIZE_BYTES = 100 * 1024 * 1024;
+
+    // ✅ FIX 2: Expanded Allowed File Types
+    private static final List<String> ALLOWED_TYPES = List.of(
+            "application/pdf",
+            "video/mp4",
+            "image/jpeg",
+            "image/png",
+            "text/plain",                                                               // .txt
+            "application/msword",                                                       // .doc
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document"   // .docx
+    );
+
+    private static final long MAX_SIZE_BYTES = 100 * 1024 * 1024; // 100MB
 
     private final CourseContentRepository repository;
     private final FileStorageService fileStorageService;
@@ -57,12 +66,12 @@ public class CourseContentServiceImpl implements CourseContentService {
         this.userRepository = userRepository;
     }
 
-    // ✅ MASTER METHOD: Orchestrates Caching + Personalization
+    // ✅ FIX 1: @Transactional ensures 'likes' can be loaded without LazyInitException
     @Override
     @Transactional(readOnly = true)
     public Page<CourseContentResponseDTO> getAllContent(int page, int size, String userEmail) {
 
-        // 1. Get Generic Page from Redis (Fast, contains NO user specific like status)
+        // 1. Get Generic Page from Redis (Fast)
         Page<CourseContentResponseDTO> cachedPage = fetchCachedContent(page, size);
 
         // 2. If user is Guest, return as is
@@ -70,14 +79,13 @@ public class CourseContentServiceImpl implements CourseContentService {
             return cachedPage;
         }
 
-        // 3. If User Logged In -> Personalize the data
+        // 3. If User Logged In -> Personalize the data (check if THEY liked it)
         User currentUser = userRepository.findByEmail(userEmail)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
         // We must clone the list because the cached list is immutable/shared
         List<CourseContentResponseDTO> personalizedList = cachedPage.getContent().stream()
                 .map(dto -> {
-                    // Create a copy to modify
                     CourseContentResponseDTO copy = new CourseContentResponseDTO();
                     copy.setId(dto.getId());
                     copy.setFileName(dto.getFileName());
@@ -91,9 +99,7 @@ public class CourseContentServiceImpl implements CourseContentService {
                     copy.setLikeCount(dto.getLikeCount());
                     copy.setCommentCount(dto.getCommentCount());
 
-                    // ✅ CHECK DATABASE: Did this user like this content?
-                    // Note: Ideally we fetch all likes in one query for performance,
-                    // but for now, checking per item is safer logic-wise.
+                    // Check Database for specific user interaction
                     CourseContent contentEntity = repository.findById(dto.getId()).orElse(null);
                     if(contentEntity != null && contentEntity.getLikes().contains(currentUser)) {
                         copy.setLikedByCurrentUser(true);
@@ -107,23 +113,24 @@ public class CourseContentServiceImpl implements CourseContentService {
         return new PageImpl<>(personalizedList, cachedPage.getPageable(), cachedPage.getTotalElements());
     }
 
-    // ✅ CACHED METHOD (Internal Helper)
-    // This only returns the raw data. No "isLiked" logic here.
+    // Internal Helper (Cached)
     @Cacheable(value = "contentFeed", key = "#page + '-' + #size")
     public Page<CourseContentResponseDTO> fetchCachedContent(int page, int size) {
         log.info("Fetching content from DB (Cache Miss) for page {} size {}", page, size);
         Pageable pageable = PageRequest.of(page, size, Sort.by("uploadDate").descending());
-
         return repository.findAll(pageable).map(this::toDto);
     }
 
-    // ✅ CLEAR CACHE (Upload)
     @Override
     @CacheEvict(value = "contentFeed", allEntries = true)
     public UploadResponseDTO uploadFile(MultipartFile file, String description, String baseDownloadUrl, String userEmail) {
-        // ... (Keep same logic as before) ...
         if (file.isEmpty()) throw new FileStorageException("File is empty");
-        if (!ALLOWED_TYPES.contains(file.getContentType())) throw new FileStorageException("Invalid file type");
+
+        // Validate File Type using the expanded list
+        if (!ALLOWED_TYPES.contains(file.getContentType())) {
+            throw new FileStorageException("Invalid file type: " + file.getContentType());
+        }
+
         if (file.getSize() > MAX_SIZE_BYTES) throw new FileStorageException("File is too large");
 
         try {
@@ -154,7 +161,6 @@ public class CourseContentServiceImpl implements CourseContentService {
         }
     }
 
-    // ✅ CLEAR CACHE (Add Link)
     @Override
     @CacheEvict(value = "contentFeed", allEntries = true)
     public UploadResponseDTO addLink(String url, String description, String userEmail) {
@@ -184,7 +190,6 @@ public class CourseContentServiceImpl implements CourseContentService {
         return dto;
     }
 
-    // ✅ CLEAR CACHE (Delete)
     @Override
     @CacheEvict(value = "contentFeed", allEntries = true)
     public void deleteContent(Long id, String userEmail) {
@@ -208,13 +213,16 @@ public class CourseContentServiceImpl implements CourseContentService {
         deleteContent(id, null);
     }
 
-    // ... (Keep getMyContents, getContent, getFileData, AI methods same as before) ...
+    // ✅ FIX 1: Added @Transactional to fix LazyInitializationException on Dashboard
     @Override
+    @Transactional(readOnly = true)
     public List<CourseContentResponseDTO> getMyContents(String userEmail) {
         return repository.findAllByUserEmail(userEmail).stream().map(this::toDto).toList();
     }
 
+    // ✅ FIX 1: Added @Transactional to fix LazyInitializationException on Download/View
     @Override
+    @Transactional(readOnly = true)
     public CourseContentResponseDTO getContent(Long id) {
         CourseContent content = repository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Content not found: " + id));
         return toDto(content);
@@ -264,10 +272,9 @@ public class CourseContentServiceImpl implements CourseContentService {
             dto.setFileUrl(fileStorageService.getPublicUrl(entity.getFileUrl()));
         }
 
+        // access lazy collections (Safe because @Transactional is now on the caller methods)
         dto.setLikeCount(entity.getLikes().size());
         dto.setCommentCount(entity.getComments().size());
-        // ⚠️ Intentionally NOT setting likedByCurrentUser here
-        // Because this DTO goes into the shared cache.
 
         if (entity.getUser() != null) {
             String name = (entity.getUser().getName() != null) ? entity.getUser().getName() : entity.getUser().getEmail();
