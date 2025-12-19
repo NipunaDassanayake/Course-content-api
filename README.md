@@ -93,15 +93,27 @@ Backend
 The backend relies on environment variables for security. You must provide these when running locally or via Docker.
 
 ```
-DB_URL="jdbc:mysql://localhost:3306/db_name"
+# Database
+DB_URL="jdbc:mysql://mysql-container:3306/course_content_db1?allowPublicKeyRetrieval=true&useSSL=false&serverTimezone=UTC"
 DB_USERNAME="root"
 DB_PASSWORD="your_password"
-JWT_SECRET="your_256_bit_secret"
+
+# Redis Cache
+CACHE_TYPE="redis"
+REDIS_HOST="redis-container"
+REDIS_PORT="6379"
+
+# Security
+JWT_SECRET="your_256_bit_secret_key"
 JWT_EXPIRATION=36000000
+
+# AWS S3
 AWS_ACCESS_KEY="your_aws_access_key"
 AWS_SECRET_KEY="your_aws_secret_key"
 AWS_REGION="ap-southeast-1"
 AWS_BUCKET_NAME="your_s3_bucket"
+
+# Third-Party APIs
 GEMINI_API_KEY="your_gemini_api_key"
 GOOGLE_CLIENT_ID="your_google_client_id"
 
@@ -129,26 +141,40 @@ cd learnhub
 ```
 
 2. Run Backend (Docker Method - Recommended)
-Navigate to the backend folder and build the image.
+We use a Docker Network to connect Spring Boot, MySQL, and Redis.
+
+Step A: Create Network & Infrastructure
+```
+docker network create learnhub-net
+
+# Start MySQL
+docker run -d --name mysql-container --network learnhub-net \
+  -e MYSQL_ROOT_PASSWORD=your_password -e MYSQL_DATABASE=course_content_db1 mysql:8.0
+
+# Start Redis
+docker run -d --name redis-container --network learnhub-net redis:alpine
+```
+
+Step B: Build & Run Backend
+
 ```
 cd backend
 docker build -t learnhub-backend .
-```
 
-Run the container (Replace placeholders with real keys):
-
-```
-docker run -p 8080:8080 \
-  -e DB_URL="jdbc:mysql://host.docker.internal:3306/your_db" \
+# Run the app container
+docker run -d -p 8080:8080 --name backend-app --network learnhub-net \
+  -e DB_URL="jdbc:mysql://mysql-container:3306/course_content_db1?allowPublicKeyRetrieval=true&useSSL=false&serverTimezone=UTC" \
   -e DB_USERNAME="root" \
-  -e DB_PASSWORD="password" \
-  -e JWT_SECRET="your_secret" \
-  -e AWS_ACCESS_KEY="your_key" \
-  -e AWS_SECRET_KEY="your_secret" \
-  -e AWS_REGION="us-east-1" \
-  -e AWS_BUCKET_NAME="your_bucket" \
-  -e GEMINI_API_KEY="your_ai_key" \
-  -e GOOGLE_CLIENT_ID="your_google_id" \
+  -e DB_PASSWORD="your_password" \
+  -e CACHE_TYPE="redis" \
+  -e REDIS_HOST="redis-container" \
+  -e REDIS_PORT="6379" \
+  -e JWT_SECRET="your_jwt_secret" \
+  -e AWS_ACCESS_KEY="your_aws_key" \
+  -e AWS_SECRET_KEY="your_aws_secret" \
+  -e AWS_BUCKET_NAME="your_bucket_name" \
+  -e GEMINI_API_KEY="your_gemini_key" \
+  -e GOOGLE_CLIENT_ID="your_google_client_id" \
   learnhub-backend
 ```
 
@@ -174,7 +200,13 @@ Frontend: Hosted on Vercel for global edge delivery. It uses a vercel.json proxy
 
 Backend: Hosted on an AWS EC2 (Ubuntu) instance running Docker.
 
-Database: MySQL 8 running as a separate Docker container on the same EC2 network (learnhub-net).
+Data Layer: * MySQL 8 (Containerized) for persistent data.
+
+Redis (Containerized) for high-performance caching.
+
+AWS S3 for object storage.
+
+All backend components communicate via a private Docker bridge network (learnhub-net).
 ```
 
 🔮 Future Roadmap
@@ -188,3 +220,14 @@ Database: MySQL 8 running as a separate Docker container on the same EC2 network
 
 🤝 Contributing
 Contributions are welcome! Please fork the repository and create a Pull Request.
+
+<img width="1907" height="1066" alt="image" src="https://github.com/user-attachments/assets/15e5c480-58b2-4dec-bf03-ff27909bcf1e" />
+<img width="1917" height="1071" alt="image" src="https://github.com/user-attachments/assets/320984c7-ed1f-49c2-a831-adf57a8d9c5d" />
+<img width="1897" height="1079" alt="image" src="https://github.com/user-attachments/assets/b67ce48c-de38-4679-b87b-b224b72badd5" />
+<img width="1889" height="1071" alt="image" src="https://github.com/user-attachments/assets/4f39fe02-e734-4366-9308-7416ccad111a" />
+<img width="1919" height="1079" alt="image" src="https://github.com/user-attachments/assets/773294a4-77d5-4c34-a2f2-b2c9f468167a" />
+<img width="1910" height="1077" alt="image" src="https://github.com/user-attachments/assets/016a4431-a16b-4c7b-9e22-5d1ec1dfcd9b" />
+<img width="1893" height="1066" alt="image" src="https://github.com/user-attachments/assets/eb2ba31b-beed-46fb-b07e-13ec62bc956b" />
+<img width="1919" height="1003" alt="image" src="https://github.com/user-attachments/assets/4836fd3b-66d6-4b6e-b5ac-8614a5e55636" />
+<img width="1908" height="1075" alt="image" src="https://github.com/user-attachments/assets/c063b359-ba4a-4780-b6c2-073a70b8014b" />
+
