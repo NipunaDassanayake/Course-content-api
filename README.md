@@ -6,7 +6,7 @@
 
 ## 🌐 Live Demo
 
-- **Frontend (Vercel):** [https://course-frontend.vercel.app](https://course-frontend.vercel.app)
+- **Frontend (Vercel):** [https://course-frontend.vercel.app](https://course-fronend.vercel.app)
 - **Backend API (AWS EC2):** `http://13.214.176.196:8080/api/content` *(Replace with your current EC2 IP if different)*
 
 ---
