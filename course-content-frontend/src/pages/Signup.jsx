@@ -1,8 +1,12 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { register } from "../api/contentApi";
-import { FaLock, FaEnvelope, FaGithub, FaTwitter, FaLinkedin } from "react-icons/fa";
+import {
+  FaLock, FaEnvelope, FaGithub, FaTwitter, FaLinkedin,
+  FaMoon, FaSun
+} from "react-icons/fa";
 import logo from "../assets/lernLogo.png";
+import signupHero from "../assets/login-bg.png";
 
 function Signup() {
   const [email, setEmail] = useState("");
@@ -10,7 +14,22 @@ function Signup() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [darkMode, setDarkMode] = useState(false);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    document.documentElement.classList.remove("dark");
+  }, []);
+
+  const toggleTheme = () => {
+    const newMode = !darkMode;
+    setDarkMode(newMode);
+    if (newMode) {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -25,11 +44,9 @@ function Signup() {
 
     try {
       const res = await register({ email, password });
-
       localStorage.setItem("token", res.data.token);
       localStorage.setItem("userEmail", res.data.email);
-
-      navigate("/dashboard");
+      navigate("/home");
     } catch (err) {
       console.error(err);
       setError("Registration failed. Email might be already in use.");
@@ -39,115 +56,135 @@ function Signup() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-br from-slate-100 to-sky-100 dark:from-slate-900 dark:to-slate-800 text-slate-800 dark:text-slate-100 font-sans">
+    <div className="h-screen flex font-sans overflow-hidden transition-colors duration-300 bg-white dark:bg-slate-950">
 
-      {/* 🟢 Header */}
-      <header className="w-full py-6 px-8 flex justify-between items-center">
-        <div className="flex items-center gap-2">
-          <div className="h-8 w-8 bg-emerald-600 rounded-lg flex items-center justify-center text-white font-bold shadow-lg shadow-emerald-500/30">
-            L
-          </div>
-          <span className="text-xl font-bold tracking-tight text-slate-800 dark:text-white">LearnHub</span>
+      {/* 🟢 LEFT SIDE: Illustration */}
+      <div className="hidden lg:flex w-1/2 relative items-center justify-center bg-slate-50 dark:bg-slate-900 transition-colors duration-300">
+
+        {/* Blob */}
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-emerald-200/40 dark:bg-emerald-600/20 blur-[120px] rounded-full pointer-events-none transition-colors duration-300"></div>
+
+        {/* Illustration */}
+        <img
+            src={signupHero}
+            alt="Join LearnHub"
+            className="w-full max-w-2xl max-h-[85vh] object-contain relative z-10 drop-shadow-xl animate-in fade-in zoom-in duration-700 hover:scale-[1.02] transition-transform duration-500"
+        />
+      </div>
+
+      {/* 🔵 RIGHT SIDE: Signup Form */}
+      <div className="flex-1 flex flex-col justify-center items-center p-4 lg:p-8 relative bg-white dark:bg-slate-950 transition-colors duration-300">
+
+        {/* Theme Toggle */}
+        <div className="absolute top-6 left-6 z-20">
+           <button
+             onClick={toggleTheme}
+             className="p-2.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-yellow-400 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all shadow-sm"
+             title="Toggle Theme"
+           >
+             {darkMode ? <FaSun size={18} /> : <FaMoon size={18} />}
+           </button>
         </div>
-        <Link to="/" className="text-sm font-medium text-slate-500 hover:text-emerald-600 dark:text-slate-400 dark:hover:text-emerald-400 transition-colors">
-          Log in
-        </Link>
-      </header>
 
-      {/* 🔵 Main Content */}
-      <main className="flex-1 flex items-center justify-center p-4">
-        <div className="bg-white dark:bg-slate-950 p-8 rounded-2xl shadow-2xl w-full max-w-md border border-slate-200 dark:border-slate-800 transition-all relative overflow-hidden">
+        {/* Main Content */}
+        <div className="w-full max-w-sm space-y-5 z-10 flex flex-col justify-center">
 
-           {/* Decorative background blob */}
-           <div className="absolute -top-10 -left-10 w-32 h-32 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none"></div>
-
-          <div className="text-center mb-8 relative z-10">
-            <img src={logo} alt="LernHub Logo" className="h-20 mx-auto mb-4 drop-shadow-sm" />
-            <h2 className="text-3xl font-extrabold text-slate-800 dark:text-white tracking-tight">
-              Create Account
-            </h2>
-            <p className="text-slate-500 text-sm mt-2">Start your learning journey today</p>
+          {/* Logo & Heading */}
+          <div className="text-center">
+            <div className="h-12 w-12 bg-slate-900 dark:bg-white rounded-xl flex items-center justify-center mx-auto mb-3 shadow-lg">
+                 <img src={logo} alt="Logo" className="h-8 w-8 object-contain" />
+            </div>
+            <h2 className="text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight">Create Account</h2>
+            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Start your learning journey today.</p>
           </div>
 
           {error && (
-            <div className="bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 p-3 rounded-lg mb-6 text-sm border border-red-100 dark:border-red-900/50 text-center">
+             <div className="bg-red-50 dark:bg-red-950/30 text-red-600 dark:text-red-400 p-2.5 rounded-lg text-xs text-center border border-red-100 dark:border-red-900/50">
               {error}
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-5 relative z-10">
-            <div className="relative group">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <FaEnvelope className="text-slate-400 group-focus-within:text-emerald-500 transition-colors" />
-              </div>
-              <input
-                type="email"
-                required
-                placeholder="Email Address"
-                className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition-all placeholder:text-slate-400"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-              />
+          {/* Form */}
+          <form onSubmit={handleSubmit} className="space-y-4">
+
+            {/* Email Field */}
+            <div>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Email Address</label>
+                <div className="relative group">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <FaEnvelope className="text-slate-400 group-focus-within:text-emerald-500 transition-colors" />
+                    </div>
+                    <input
+                        type="email"
+                        required
+                        className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500 dark:focus:ring-emerald-600 focus:border-transparent outline-none transition-all placeholder:text-slate-400 text-sm"
+                        placeholder="name@example.com"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                    />
+                </div>
             </div>
 
-            <div className="relative group">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <FaLock className="text-slate-400 group-focus-within:text-emerald-500 transition-colors" />
-              </div>
-              <input
-                type="password"
-                required
-                placeholder="Password"
-                className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition-all placeholder:text-slate-400"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
+            {/* Password Field */}
+            <div>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Password</label>
+                <div className="relative group">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <FaLock className="text-slate-400 group-focus-within:text-emerald-500 transition-colors" />
+                    </div>
+                    <input
+                        type="password"
+                        required
+                        className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500 dark:focus:ring-emerald-600 focus:border-transparent outline-none transition-all placeholder:text-slate-400 text-sm"
+                        placeholder="••••••••"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                    />
+                </div>
             </div>
 
-            <div className="relative group">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <FaLock className="text-slate-400 group-focus-within:text-emerald-500 transition-colors" />
-              </div>
-              <input
-                type="password"
-                required
-                placeholder="Confirm Password"
-                className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition-all placeholder:text-slate-400"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-              />
+             {/* Confirm Password Field */}
+             <div>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Confirm Password</label>
+                <div className="relative group">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <FaLock className="text-slate-400 group-focus-within:text-emerald-500 transition-colors" />
+                    </div>
+                    <input
+                        type="password"
+                        required
+                        className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500 dark:focus:ring-emerald-600 focus:border-transparent outline-none transition-all placeholder:text-slate-400 text-sm"
+                        placeholder="••••••••"
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                    />
+                </div>
             </div>
 
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-xl font-bold text-lg transition-all shadow-lg shadow-emerald-500/30 active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed"
+              className="w-full bg-emerald-600 hover:bg-emerald-700 dark:bg-emerald-600 dark:hover:bg-emerald-500 text-white py-2.5 rounded-lg font-bold text-base shadow-md shadow-emerald-200 dark:shadow-none transition-all active:scale-[0.98] disabled:opacity-70 mt-2"
             >
               {loading ? "Creating Account..." : "Sign Up"}
             </button>
           </form>
 
-          <div className="mt-8 text-center text-sm text-slate-500 dark:text-slate-400">
-            <p>Already have an account?</p>
-            <Link to="/" className="text-emerald-600 hover:text-emerald-700 dark:hover:text-emerald-400 font-bold hover:underline transition-all">
-              Login here
-            </Link>
+          {/* ✅ Login Link (Moved Under Button) */}
+          <div className="text-center mt-6">
+             <span className="text-sm text-slate-500 dark:text-slate-400">Already have an account? </span>
+             <Link to="/" className="text-sm text-emerald-600 dark:text-emerald-500 font-bold hover:underline transition-colors">Log in</Link>
           </div>
-        </div>
-      </main>
 
-      {/* 🟤 Footer */}
-      <footer className="w-full py-6 text-center">
-        <div className="flex justify-center gap-6 mb-2 text-slate-400">
-          <a href="#" className="hover:text-slate-600 dark:hover:text-slate-300 transition-colors"><FaGithub size={20} /></a>
-          <a href="#" className="hover:text-slate-600 dark:hover:text-slate-300 transition-colors"><FaTwitter size={20} /></a>
-          <a href="#" className="hover:text-slate-600 dark:hover:text-slate-300 transition-colors"><FaLinkedin size={20} /></a>
         </div>
-        <p className="text-xs text-slate-400 dark:text-slate-500">
-          &copy; {new Date().getFullYear()} LearnHub Inc. All rights reserved. | Privacy Policy | Terms of Service
-        </p>
-      </footer>
 
+        {/* Footer Icons */}
+        <div className="absolute bottom-6 flex gap-6 text-slate-400 dark:text-slate-600">
+           <a href="#" className="hover:text-slate-600 dark:hover:text-slate-400 transition-colors"><FaGithub size={18} /></a>
+           <a href="#" className="hover:text-slate-600 dark:hover:text-slate-400 transition-colors"><FaTwitter size={18} /></a>
+           <a href="#" className="hover:text-slate-600 dark:hover:text-slate-400 transition-colors"><FaLinkedin size={18} /></a>
+        </div>
+      </div>
     </div>
   );
 }
