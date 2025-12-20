@@ -70,24 +70,29 @@
 
 ```text
 learnhub/
-├── backend/
+├── .github/
+│   └── workflows/
+│       └── deploy.yml          # GitHub Actions CI/CD Pipeline
+│
+├── coursecontent/              # Backend (Spring Boot 3)
 │   ├── src/main/java/com/silverline/task/coursecontent/
-│   │   ├── config/             # App configs (S3, Security, Cors, Redis)
+│   │   ├── config/             # Security, Redis, S3 & CORS Config
 │   │   ├── controller/         # REST API Endpoints
 │   │   ├── model/              # JPA Entities (User, Content, Comment)
-│   │   ├── repository/         # DB Access Layer
+│   │   ├── repository/         # MySQL Repositories
 │   │   ├── security/           # JWT Filters & Auth Logic
-│   │   ├── service/            # Business Logic (AI, S3, User Services)
-│   │   └── CourseContentApplication.java
-│   └── Dockerfile              # Backend Container Config
+│   │   └── service/            # Business Logic (Gemini AI, S3, Async)
+│   ├── .mvn/                   # Maven Wrapper Configuration
+│   ├── Dockerfile              # Backend Container Definition
+│   └── pom.xml                 # Dependencies
 │
-└── frontend/
+└── frontend/                   # Frontend (React + Vite)
     ├── src/
-    │   ├── api/                # Axios API calls
-    │   ├── components/         # Reusable UI (Modals, Headers, Upload)
-    │   ├── pages/              # Views (Home, Dashboard, Login)
-    │   └── App.jsx             # Routing & Providers
-    └── vercel.json             # Proxy Configuration
+    │   ├── api/                # Axios Interceptors & Requests
+    │   ├── components/         # Reusable UI (Cards, Modals)
+    │   ├── pages/              # Views (Feed, Dashboard, Login)
+    │   └── App.jsx             # Routing & Theme Provider
+    └── vercel.json             # Vercel Proxy Rules
 
 ```
 ⚙️ Environment Variables
