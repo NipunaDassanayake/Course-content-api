@@ -4,7 +4,7 @@ on:
   push:
     branches: [ "main" ]
     paths:
-      - 'coursecontent/**'
+      - 'coursecontent/**'      # ✅ UPDATED: Trigger on changes in 'coursecontent'
       - '.github/workflows/**'
 
 jobs:
@@ -22,7 +22,7 @@ jobs:
           cache: maven
 
       - name: Build with Maven
-        working-directory: ./coursecontent
+        working-directory: ./coursecontent  # ✅ UPDATED: Point to the real folder
         run: |
           chmod +x mvnw
           ./mvnw clean package -DskipTests
@@ -36,7 +36,7 @@ jobs:
       - name: Build and Push Docker Image
         uses: docker/build-push-action@v4
         with:
-          context: ./backend
+          context: ./coursecontent          # ✅ UPDATED: Context is the 'coursecontent' folder
           push: true
           tags: ${{ secrets.DOCKER_USERNAME }}/learnhub-backend:latest
 
@@ -54,4 +54,5 @@ jobs:
             docker pull ${{ secrets.DOCKER_USERNAME }}/learnhub-backend:latest
             docker stop backend-app || true
             docker rm backend-app || true
+            # Ensure backend.env exists on your server
             docker run -d --name backend-app --network learnhub-net -p 8080:8080 --restart always --env-file backend.env ${{ secrets.DOCKER_USERNAME }}/learnhub-backend:latest
