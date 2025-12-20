@@ -36,6 +36,7 @@ public class SecurityConfig {
 
                         // 🟢 2. PUBLIC ENDPOINTS
                         .requestMatchers("/api/auth/**").permitAll()
+                        .requestMatchers("/actuator/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/content/**").permitAll() // Public Feed & Download
                         .requestMatchers(HttpMethod.GET, "/api/interactions/**").permitAll() // View Comments
 
