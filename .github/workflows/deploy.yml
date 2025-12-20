@@ -22,7 +22,7 @@ jobs:
           cache: maven
 
       - name: Build with Maven
-        working-directory: ./backend
+        working-directory: ./coursecontent
         run: |
           chmod +x mvnw
           ./mvnw clean package -DskipTests
