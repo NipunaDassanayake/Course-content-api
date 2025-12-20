@@ -1,3 +1,4 @@
+![CI/CD Pipeline](https://github.com/NipunaDassanayake/Course-content-api/actions/workflows/deploy.yml/badge.svg)
 # 🚀 LearnHub - AI-Powered Course Content Platform
 
 **LearnHub** is an enterprise-grade, full-stack course management platform designed to streamline the sharing and consumption of educational materials. It combines robust cloud storage with **Generative AI** to provide instant summaries, key takeaways, and interactive chat capabilities for uploaded content.
