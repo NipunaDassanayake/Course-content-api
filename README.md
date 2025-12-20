@@ -58,10 +58,11 @@
 - **HTTP Client:** Axios
 - **Proxy:** Vercel Rewrites (for CORS handling)
 
-### DevOps
-- **Containerization:** Docker (Multi-stage builds)
-- **Deployment:** AWS EC2 (Backend), Vercel (Frontend)
-- **CI/CD:** Docker Hub Registry
+### **DevOps & Infrastructure**
+* **CI/CD:** GitHub Actions (Automated Build, Test, & Deploy Pipeline)
+* **Containerization:** Docker & Docker Compose (Custom Bridge Networking)
+* **Cloud:** AWS EC2 (Ubuntu Linux) & S3 (Object Storage)
+* **Registry:** Docker Hub
 
 ---
 
@@ -90,33 +91,28 @@ learnhub/
 
 ```
 ⚙️ Environment Variables
-Backend
-The backend relies on environment variables for security. You must provide these when running locally or via Docker.
+To run this project, you need to configure the following environment variables in a `.env` file (for local Docker) or your deployment secrets.
 
 ```
-# Database
-DB_URL="jdbc:mysql://mysql-container:3306/course_content_db1?allowPublicKeyRetrieval=true&useSSL=false&serverTimezone=UTC"
-DB_USERNAME="root"
-DB_PASSWORD="your_password"
+### **Backend Configuration**
+| Variable | Description |
+| :--- | :--- |
+| `SPRING_DATASOURCE_URL` | MySQL JDBC Connection String |
+| `SPRING_DATASOURCE_USERNAME` | Database Username |
+| `SPRING_DATASOURCE_PASSWORD` | Database Password |
+| `SPRING_CACHE_TYPE` | Set to `redis` |
+| `SPRING_DATA_REDIS_HOST` | Redis Hostname (e.g., `redis-container`) |
+| `JWT_SECRET` | 256-bit Secret Key for Token Generation |
+| `JWT_EXPIRATION` | Access Token Expiration (ms) |
 
-# Redis Cache
-CACHE_TYPE="redis"
-REDIS_HOST="redis-container"
-REDIS_PORT="6379"
-
-# Security
-JWT_SECRET="your_256_bit_secret_key"
-JWT_EXPIRATION=36000000
-
-# AWS S3
-AWS_ACCESS_KEY="your_aws_access_key"
-AWS_SECRET_KEY="your_aws_secret_key"
-AWS_REGION="ap-southeast-1"
-AWS_BUCKET_NAME="your_s3_bucket"
-
-# Third-Party APIs
-GEMINI_API_KEY="your_gemini_api_key"
-GOOGLE_CLIENT_ID="your_google_client_id"
+### **Cloud & AI Services**
+| Variable | Description |
+| :--- | :--- |
+| `AWS_ACCESS_KEY_ID` | AWS IAM Access Key |
+| `AWS_SECRET_ACCESS_KEY` | AWS IAM Secret Key |
+| `AWS_S3_BUCKET` | S3 Bucket Name for file storage |
+| `GEMINI_API_KEY` | Google Gemini AI API Key |
+| `GOOGLE_CLIENT_ID` | Google OAuth2 Client ID |
 
 ```
 
@@ -208,6 +204,17 @@ Redis (Containerized) for high-performance caching.
 AWS S3 for object storage.
 
 All backend components communicate via a private Docker bridge network (learnhub-net).
+```
+## 🚀 Deployment Automation (CI/CD)
+
+This project uses a **Fully Automated CI/CD Pipeline** via **GitHub Actions** to ensure seamless delivery from code commit to production.
+```
+* **Trigger:** Pushes to the `main` branch automatically start the pipeline.
+* **Build Stage:** Compiles Java code with Maven and runs unit tests.
+* **Containerization:** Builds a Docker image and pushes it to **Docker Hub**.
+* **Deployment:** SSHs into the **AWS EC2** instance, pulls the latest image, and gracefully restarts the container with zero downtime.
+
+**Workflow File:** `.github/workflows/deploy.yml`
 ```
 
 🔮 Future Roadmap
