@@ -31,6 +31,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc(addFilters = false) // Security filters are OFF
 class CourseContentControllerTest {
 
+
     @Autowired
     private MockMvc mockMvc;
 
