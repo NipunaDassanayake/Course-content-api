@@ -246,8 +246,10 @@ Spring Boot Actuator (`/actuator/prometheus`) ➡️ Prometheus (Scraper) ➡️
 ```
 ![Grafana Dashboard](./screenshots/monitoring-dashboard.png)
 
-## 📖 API Documentation
 
+
+## 📖 API Documentation
+```
 The backend includes fully interactive Swagger/OpenAPI documentation.
 You can explore endpoints and test requests directly from the browser.
 
@@ -256,6 +258,8 @@ You can explore endpoints and test requests directly from the browser.
 **Features:**
 * 🔐 **JWT Auth Support:** Click the "Authorize" button and paste your token to test protected endpoints.
 * 🚀 **Try It Out:** Send real requests to the live server.
+
+```
 
 
 🔮 Future Roadmap
