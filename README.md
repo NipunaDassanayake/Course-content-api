@@ -69,30 +69,39 @@
 ## 📂 Project Structure
 
 ```text
+## 📂 Project Structure
+
 learnhub/
 ├── .github/
 │   └── workflows/
-│       └── deploy.yml          # GitHub Actions CI/CD Pipeline
+│       └── deploy.yml          # 🚀 GitHub Actions CI/CD Pipeline
 │
-├── coursecontent/              # Backend (Spring Boot 3)
+├── coursecontent/              # ☕ Backend (Spring Boot 3)
 │   ├── src/main/java/com/silverline/task/coursecontent/
-│   │   ├── config/             # Security, Redis, S3 & CORS Config
+│   │   ├── config/             # Security, Redis, S3 & Actuator Config
 │   │   ├── controller/         # REST API Endpoints
 │   │   ├── model/              # JPA Entities (User, Content, Comment)
-│   │   ├── repository/         # MySQL Repositories
+│   │   ├── repository/         # Database Access Layer
 │   │   ├── security/           # JWT Filters & Auth Logic
-│   │   └── service/            # Business Logic (Gemini AI, S3, Async)
-│   ├── .mvn/                   # Maven Wrapper Configuration
+│   │   └── service/            # Business Logic (AI, S3, User Services)
+│   ├── .mvn/                   # ⚙️ Maven Wrapper (Crucial for CI/CD)
 │   ├── Dockerfile              # Backend Container Definition
-│   └── pom.xml                 # Dependencies
+│   ├── mvnw                    # Maven Wrapper Script (Linux)
+│   ├── mvnw.cmd                # Maven Wrapper Script (Windows)
+│   └── pom.xml                 # Dependencies (Actuator + Micrometer added)
 │
-└── frontend/                   # Frontend (React + Vite)
-    ├── src/
-    │   ├── api/                # Axios Interceptors & Requests
-    │   ├── components/         # Reusable UI (Cards, Modals)
-    │   ├── pages/              # Views (Feed, Dashboard, Login)
-    │   └── App.jsx             # Routing & Theme Provider
-    └── vercel.json             # Vercel Proxy Rules
+├── frontend/                   # ⚛️ Frontend (React + Vite)
+│   ├── src/
+│   │   ├── api/                # Axios Interceptors & Requests
+│   │   ├── components/         # Reusable UI (Cards, Modals)
+│   │   ├── pages/              # Views (Feed, Dashboard, Login)
+│   │   └── App.jsx             # Routing & Theme Provider
+│   ├── package.json            # NPM Dependencies
+│   └── vercel.json             # Vercel Proxy Rules
+│
+├── prometheus.yml              # 📊 Prometheus Monitoring Configuration
+├── .gitignore                  # Git Ignore Rules
+└── README.md                   # Project Documentation
 
 ```
 ⚙️ Environment Variables
