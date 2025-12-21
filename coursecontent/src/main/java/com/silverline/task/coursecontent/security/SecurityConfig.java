@@ -31,18 +31,26 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
                         // 🟢 1. SPECIFIC AUTHENTICATED ENDPOINTS (Must come FIRST)
-                        // This ensures "My Contents" requires a token/login
                         .requestMatchers("/api/content/my-contents").authenticated()
 
                         // 🟢 2. PUBLIC ENDPOINTS
                         .requestMatchers("/api/auth/**").permitAll()
-                        .requestMatchers("/actuator/**").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/content/**").permitAll() // Public Feed & Download
-                        .requestMatchers(HttpMethod.GET, "/api/interactions/**").permitAll() // View Comments
+                        .requestMatchers("/actuator/**").permitAll() // Prometheus Monitoring
+
+                        // 👇 SWAGGER UI WHITELIST (Added this block)
+                        .requestMatchers(
+                                "/v3/api-docs/**",
+                                "/swagger-ui/**",
+                                "/swagger-ui.html"
+                        ).permitAll()
+
+                        // Public Content Access
+                        .requestMatchers(HttpMethod.GET, "/api/content/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/interactions/**").permitAll()
 
                         // 🟢 3. GENERAL PROTECTED ENDPOINTS
-                        .requestMatchers(HttpMethod.POST, "/api/content/**").authenticated() // Upload
-                        .requestMatchers(HttpMethod.DELETE, "/api/content/**").authenticated() // Delete
+                        .requestMatchers(HttpMethod.POST, "/api/content/**").authenticated()
+                        .requestMatchers(HttpMethod.DELETE, "/api/content/**").authenticated()
                         .requestMatchers("/api/interactions/**").authenticated()
                         .requestMatchers("/api/notifications/**").authenticated()
                         .requestMatchers("/api/users/**").authenticated()
@@ -60,7 +68,7 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOrigins(List.of("http://localhost:5173","https://course-fronend.vercel.app"));
+        config.setAllowedOrigins(List.of("http://localhost:5173", "https://course-fronend.vercel.app"));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("Authorization", "Content-Type"));
         config.setAllowCredentials(true);
