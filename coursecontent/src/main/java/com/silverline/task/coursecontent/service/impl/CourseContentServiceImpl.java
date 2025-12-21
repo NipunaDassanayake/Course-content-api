@@ -46,7 +46,7 @@ public class CourseContentServiceImpl implements CourseContentService {
             "application/vnd.openxmlformats-officedocument.wordprocessingml.document"   // .docx
     );
 
-    private static final long MAX_SIZE_BYTES = 100 * 1024 * 1024; // 100MB
+    private static final long MAX_SIZE_BYTES = 100L * 1024 * 1024; // 100MB
 
     private final CourseContentRepository repository;
     private final FileStorageService fileStorageService;

@@ -24,6 +24,9 @@ public class SecurityConfig {
     private final JwtAuthenticationFilter jwtAuthFilter;
     private final AuthenticationProvider authenticationProvider;
 
+    // ✅ FIXED: Constant to prevent duplicate string literal "Code Smell"
+    private static final String CONTENT_API_PATTERN = "/api/content/**";
+
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
@@ -37,7 +40,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers("/actuator/**").permitAll() // Prometheus Monitoring
 
-                        // 👇 SWAGGER UI WHITELIST (Added this block)
+                        // 👇 SWAGGER UI WHITELIST
                         .requestMatchers(
                                 "/v3/api-docs/**",
                                 "/swagger-ui/**",
@@ -45,12 +48,15 @@ public class SecurityConfig {
                         ).permitAll()
 
                         // Public Content Access
-                        .requestMatchers(HttpMethod.GET, "/api/content/**").permitAll()
+                        // ✅ FIXED: Use constant here
+                        .requestMatchers(HttpMethod.GET, CONTENT_API_PATTERN).permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/interactions/**").permitAll()
 
                         // 🟢 3. GENERAL PROTECTED ENDPOINTS
-                        .requestMatchers(HttpMethod.POST, "/api/content/**").authenticated()
-                        .requestMatchers(HttpMethod.DELETE, "/api/content/**").authenticated()
+                        // ✅ FIXED: Use constant here
+                        .requestMatchers(HttpMethod.POST, CONTENT_API_PATTERN).authenticated()
+                        .requestMatchers(HttpMethod.DELETE, CONTENT_API_PATTERN).authenticated()
+
                         .requestMatchers("/api/interactions/**").authenticated()
                         .requestMatchers("/api/notifications/**").authenticated()
                         .requestMatchers("/api/users/**").authenticated()
