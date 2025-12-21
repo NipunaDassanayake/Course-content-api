@@ -230,6 +230,23 @@ This project uses a **Fully Automated CI/CD Pipeline** via **GitHub Actions** to
 
 **Workflow File:** `.github/workflows/deploy.yml`
 ```
+## 📊 Monitoring & Observability
+
+To ensure high availability and performance, the system includes a complete monitoring stack running on AWS.
+```
+* **Prometheus:** Time-series database that scrapes real-time metrics from the backend (Spring Boot Actuator).
+* **Grafana:** Visualization dashboard tracking system health, including:
+    * JVM Memory & CPU Usage
+    * API Request Latency & Throughput
+    * System Uptime & Error Rates
+    * Active Database Connections
+
+**Architecture:**
+Spring Boot Actuator (`/actuator/prometheus`) ➡️ Prometheus (Scraper) ➡️ Grafana (Dashboard)
+```
+![Grafana Dashboard](./screenshots/monitoring-dashboard.png)
+
+
 
 🔮 Future Roadmap
 [ ] Admin Dashboard: Moderation tools for reported content.
