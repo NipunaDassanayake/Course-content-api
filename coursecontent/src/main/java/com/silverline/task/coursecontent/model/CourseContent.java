@@ -1,5 +1,6 @@
 package com.silverline.task.coursecontent.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore; // 👈 IMPORT THIS
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -18,7 +19,6 @@ public class CourseContent {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // ... (other fields: fileName, description, etc.) ...
     private String fileName;
     private String description;
     private String fileType;
@@ -34,25 +34,25 @@ public class CourseContent {
 
     @ManyToOne
     @JoinColumn(name = "user_id")
-    private User user;
+    private User user; // ✅ This is fine, keep it so we know who uploaded it.
 
-    // ✅ FIX 1: Cascade delete for Likes
-    // When content is deleted, remove the relationship from the join table
+
     @ManyToMany(cascade = {CascadeType.PERSIST, CascadeType.MERGE})
     @JoinTable(
             name = "content_likes",
             joinColumns = @JoinColumn(name = "content_id"),
             inverseJoinColumns = @JoinColumn(name = "user_id")
     )
+    @JsonIgnore // 👈 Added: Prevents loading thousands of users who liked this
     private Set<User> likes = new HashSet<>();
 
-    // ✅ FIX 2: Cascade delete for Comments
-    // If content is deleted, delete all comments associated with it
+
     @OneToMany(mappedBy = "courseContent", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonIgnore // 👈 Added: Stops the "Content -> Comment -> Content" loop
     private Set<Comment> comments = new HashSet<>();
 
-    // ✅ FIX 3: Cascade delete for Notifications
-    // If content is deleted, delete all notifications about it
+
     @OneToMany(mappedBy = "content", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonIgnore // 👈 Added: Stops the "Content -> Notification -> Content" loop
     private Set<Notification> notifications = new HashSet<>();
 }
